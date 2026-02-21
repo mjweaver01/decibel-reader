@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { AppConfig, WebSocketMessage } from "../../../shared/types";
+import type { AppConfig, WebSocketMessage } from "../../shared/types";
 import { LiveMeter } from "./components/LiveMeter";
 import { RecordingsList } from "./components/RecordingsList";
 import { StatusIndicator } from "./components/StatusIndicator";

@@ -8,9 +8,9 @@ A Raspberry Pi audio monitor that streams live decibel levels and records when a
 - **Frontend**: React, Tailwind CSS v4 (via bun-plugin-tailwind)
 - **Audio**: `arecord` (ALSA) + `sox` for capture and dB calculation
 
-## Raspberry Pi Setup
+## System Dependencies
 
-Install system dependencies:
+### Raspberry Pi (Linux)
 
 ```bash
 sudo apt-get update
@@ -23,6 +23,14 @@ Ensure your user is in the `audio` group for microphone access:
 sudo usermod -aG audio $USER
 # Log out and back in for the change to take effect
 ```
+
+### macOS (for local testing)
+
+```bash
+brew install sox
+```
+
+Grant microphone access to Terminal (or your terminal app) in **System Settings → Privacy & Security → Microphone**.
 
 ## Project Setup
 

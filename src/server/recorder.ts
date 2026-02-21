@@ -3,6 +3,7 @@ import { join } from "path";
 import type { AppConfig, RecordingMetadata } from "../shared/types.js";
 
 const RECORDINGS_DIR = join(import.meta.dir, "../../recordings");
+const isMac = process.platform === "darwin";
 const METADATA_FILE = join(RECORDINGS_DIR, "index.json");
 
 let metadataCache: RecordingMetadata[] | null = null;
@@ -44,23 +45,47 @@ export async function startRecording(config: AppConfig, peakDb: number): Promise
   isRecording = true;
 
   try {
-    const proc = Bun.spawn(
-      [
-        "arecord",
-        "-q",
-        "-f",
-        "S16_LE",
-        "-r",
-        "16000",
-        "-c",
-        "1",
-        "-d",
-        String(config.recordDurationSeconds),
-        filepath,
-      ],
-      { stdout: "pipe", stderr: "pipe" }
-    );
+    let proc: ReturnType<typeof Bun.spawn>;
+    if (isMac) {
+      proc = Bun.spawn(
+        [
+          "rec",
+          "-q",
+          "-r",
+          "16000",
+          "-c",
+          "1",
+          "-b",
+          "16",
+          "-e",
+          "signed-integer",
+          filepath,
+          "trim",
+          "0",
+          String(config.recordDurationSeconds),
+        ],
+        { stdout: "pipe", stderr: "pipe" }
+      );
+    } else {
+      proc = Bun.spawn(
+        [
+          "arecord",
+          "-q",
+          "-f",
+          "S16_LE",
+          "-r",
+          "16000",
+          "-c",
+          "1",
+          "-d",
+          String(config.recordDurationSeconds),
+          filepath,
+        ],
+        { stdout: "pipe", stderr: "pipe" }
+      );
+    }
     await proc.exited;
+    if (proc.exitCode !== 0) return null;
 
     const meta: RecordingMetadata = {
       id: filename.replace(".wav", ""),
