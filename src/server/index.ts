@@ -1,12 +1,7 @@
 import { join } from "path";
-import {
-  DEFAULT_CONFIG,
-  type AppConfig,
-  type WebSocketMessage,
-} from "../shared/types.js";
+import { DEFAULT_CONFIG, type AppConfig } from "../shared/types.js";
 import clientHtml from "../client/index.html";
-import { startAudioCapture } from "./audio-capture.js";
-import { getRecordings, getRecordingsDir, getIsRecording, startRecording } from "./recorder.js";
+import { getRecordings, getRecordingsDir, saveRecordingFromUpload } from "./recorder.js";
 
 const CONFIG_FILE = join(import.meta.dir, "../../config.json");
 
@@ -26,27 +21,6 @@ async function saveConfig(): Promise<void> {
   await Bun.write(CONFIG_FILE, JSON.stringify(config, null, 2));
 }
 
-const wsClients = new Set<{ send: (data: string) => void }>();
-
-function broadcast(msg: WebSocketMessage): void {
-  const data = JSON.stringify(msg);
-  for (const client of wsClients) {
-    try {
-      client.send(data);
-    } catch {
-      wsClients.delete(client);
-    }
-  }
-}
-
-async function handleThresholdExceeded(dB: number): Promise<void> {
-  const meta = await startRecording(config, dB);
-  if (meta) {
-    broadcast({ type: "recording_started", payload: { filename: meta.filename } });
-    broadcast({ type: "recording_finished", payload: meta });
-  }
-}
-
 const server = Bun.serve({
   port: 3000,
   development: true,
@@ -62,74 +36,53 @@ const server = Bun.serve({
         if (typeof body.captureIntervalMs === "number")
           config.captureIntervalMs = body.captureIntervalMs;
         await saveConfig();
-        broadcast({ type: "config", payload: config });
         return Response.json(config);
       },
     },
     "/api/recordings": {
       GET: async () => Response.json(await getRecordings()),
+      POST: async (req) => {
+        const formData = await req.formData();
+        const audio = formData.get("audio");
+        const peakDb = parseFloat(String(formData.get("peakDb") || "0"));
+        const durationSeconds = parseInt(String(formData.get("durationSeconds") || "10"), 10);
+
+        if (!audio || !(audio instanceof Blob)) {
+          return new Response("Missing audio file", { status: 400 });
+        }
+
+        const meta = await saveRecordingFromUpload(audio, peakDb, durationSeconds);
+        return Response.json(meta);
+      },
     },
     "/api/recordings/:id": {
       GET: async (req) => {
-        const id = decodeURIComponent(req.params.id).replace(/\.wav$/, "");
+        const id = decodeURIComponent(req.params.id).replace(/\.(webm|wav)$/, "");
         const dir = getRecordingsDir();
-        const filepath = join(dir, `${id}.wav`);
-        try {
-          const file = Bun.file(filepath);
-          const exists = await file.exists();
-          if (!exists) return new Response("Not found", { status: 404 });
-          return new Response(file, {
-            headers: {
-              "Content-Type": "audio/wav",
-              "Content-Disposition": `attachment; filename="${id}.wav"`,
-            },
-          });
-        } catch {
-          return new Response("Not found", { status: 404 });
+        // Try both .webm and .wav
+        for (const ext of ["webm", "wav"]) {
+          const filepath = join(dir, `${id}.${ext}`);
+          try {
+            const file = Bun.file(filepath);
+            const exists = await file.exists();
+            if (exists) {
+              return new Response(file, {
+                headers: {
+                  "Content-Type": ext === "webm" ? "audio/webm" : "audio/wav",
+                  "Content-Disposition": `attachment; filename="${id}.${ext}"`,
+                },
+              });
+            }
+          } catch {
+            // try next
+          }
         }
+        return new Response("Not found", { status: 404 });
       },
     },
-    "/api/status": {
-      GET: () =>
-        Response.json({
-          isRecording: getIsRecording(),
-          config,
-        }),
-    },
-  },
-  fetch(req, server) {
-    const url = new URL(req.url);
-    if (url.pathname === "/ws") {
-      const upgraded = server.upgrade(req);
-      return upgraded ? undefined : new Response("WebSocket upgrade failed", { status: 400 });
-    }
-    return undefined;
-  },
-  websocket: {
-    open(ws) {
-      wsClients.add(ws);
-      ws.send(JSON.stringify({ type: "config", payload: config }));
-    },
-    close(ws) {
-      wsClients.delete(ws);
-    },
-    message(ws, data) {
-      // No client messages required for now
-    },
   },
 });
 
-// Load config and start audio capture
 await loadConfig();
-
-startAudioCapture({
-  config: () => config,
-  onDbSample: (dB, timestamp) => {
-    broadcast({ type: "db_sample", payload: { dB, timestamp } });
-  },
-  onThresholdExceeded: (dB) => {
-    void handleThresholdExceeded(dB);
-  },
-});
 
 console.log(`Decibel Reader server running at http://localhost:${server.port}`);

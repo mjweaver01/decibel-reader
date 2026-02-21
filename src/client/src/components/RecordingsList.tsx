@@ -44,8 +44,8 @@ export function RecordingsList({ refreshTrigger = 0 }: RecordingsListProps) {
     );
   }
 
-  const downloadUrl = (id: string) => `${API_BASE}/recordings/${encodeURIComponent(id)}`;
-  const playUrl = downloadUrl;
+  const recordingUrl = (r: RecordingMetadata) =>
+    `${API_BASE}/recordings/${encodeURIComponent(r.id)}`;
 
   return (
     <div className="rounded-lg bg-zinc-900 p-6">
@@ -67,7 +67,7 @@ export function RecordingsList({ refreshTrigger = 0 }: RecordingsListProps) {
               </div>
               <div className="ml-2 flex shrink-0 gap-2">
                 <a
-                  href={playUrl(r.id)}
+                  href={recordingUrl(r)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="rounded px-2 py-1 text-sm text-emerald-400 hover:bg-emerald-500/20"
@@ -75,8 +75,8 @@ export function RecordingsList({ refreshTrigger = 0 }: RecordingsListProps) {
                   Play
                 </a>
                 <a
-                  href={downloadUrl(r.id)}
-                  download={`${r.id}.wav`}
+                  href={recordingUrl(r)}
+                  download={r.filename}
                   className="rounded px-2 py-1 text-sm text-zinc-400 hover:bg-zinc-700"
                 >
                   Download

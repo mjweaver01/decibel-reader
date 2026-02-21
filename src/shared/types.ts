@@ -10,11 +10,6 @@ export const DEFAULT_CONFIG: AppConfig = {
   captureIntervalMs: 500,
 };
 
-export interface DbSample {
-  dB: number;
-  timestamp: number;
-}
-
 export interface RecordingMetadata {
   id: string;
   filename: string;
@@ -22,9 +17,3 @@ export interface RecordingMetadata {
   peakDb: number;
   durationSeconds: number;
 }
-
-export type WebSocketMessage =
-  | { type: "db_sample"; payload: DbSample }
-  | { type: "recording_started"; payload: { filename: string } }
-  | { type: "recording_finished"; payload: RecordingMetadata }
-  | { type: "config"; payload: AppConfig };

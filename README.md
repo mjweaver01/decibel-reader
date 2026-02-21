@@ -1,36 +1,17 @@
 # Decibel Reader
 
-A Raspberry Pi audio monitor that streams live decibel levels and records when a configurable threshold is exceeded.
+A browser-based audio monitor that displays live decibel levels and records when a configurable threshold is exceeded.
 
 ## Tech Stack
 
-- **Backend**: Bun (HTTP server, WebSocket)
+- **Backend**: Bun (HTTP server)
 - **Frontend**: React, Tailwind CSS v4 (via bun-plugin-tailwind)
-- **Audio**: `arecord` (ALSA) + `sox` for capture and dB calculation
+- **Audio**: Browser Web Audio API + MediaRecorder (no system dependencies)
 
-## System Dependencies
+## Requirements
 
-### Raspberry Pi (Linux)
-
-```bash
-sudo apt-get update
-sudo apt-get install alsa-utils sox libsox-fmt-all
-```
-
-Ensure your user is in the `audio` group for microphone access:
-
-```bash
-sudo usermod -aG audio $USER
-# Log out and back in for the change to take effect
-```
-
-### macOS (for local testing)
-
-```bash
-brew install sox
-```
-
-Grant microphone access to Terminal (or your terminal app) in **System Settings → Privacy & Security → Microphone**.
+- **Browser**: Modern browser with microphone support (Chrome, Firefox, Safari, Edge)
+- **HTTPS or localhost**: Microphone access requires a secure context (localhost works for development)
 
 ## Project Setup
 
@@ -40,13 +21,13 @@ bun install
 
 ## Development
 
-Run the Bun server (serves API, WebSocket, and client with hot reload):
+Run the Bun server (serves API and client with hot reload):
 
 ```bash
 bun run dev
 ```
 
-- **Server**: http://localhost:3000 (API + WebSocket + React app)
+- **Server**: http://localhost:3000 (API + React app)
 
 ## Production
 
@@ -73,6 +54,5 @@ Config is persisted in `config.json` and can be changed via the web UI.
 | `/api/config` | GET | Get current config |
 | `/api/config` | POST | Update config |
 | `/api/recordings` | GET | List recordings metadata |
-| `/api/recordings/:id` | GET | Download a recording (WAV) |
-| `/api/status` | GET | Server status (isRecording, config) |
-| `/ws` | WebSocket | Live dB stream, config updates, recording events |
+| `/api/recordings/:id` | GET | Download a recording (WebM/WAV) |
+| `/api/recordings` | POST | Upload recording (multipart: audio, peakDb, durationSeconds) |

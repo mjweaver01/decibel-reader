@@ -1,9 +1,8 @@
 import { mkdir } from "fs/promises";
 import { join } from "path";
-import type { AppConfig, RecordingMetadata } from "../shared/types.js";
+import type { RecordingMetadata } from "../shared/types.js";
 
 const RECORDINGS_DIR = join(import.meta.dir, "../../recordings");
-const isMac = process.platform === "darwin";
 const METADATA_FILE = join(RECORDINGS_DIR, "index.json");
 
 let metadataCache: RecordingMetadata[] | null = null;
@@ -28,83 +27,32 @@ async function saveMetadata(metadata: RecordingMetadata[]): Promise<void> {
   await Bun.write(METADATA_FILE, JSON.stringify(metadata, null, 2));
 }
 
-let isRecording = false;
-
-export function getIsRecording(): boolean {
-  return isRecording;
-}
-
-export async function startRecording(config: AppConfig, peakDb: number): Promise<RecordingMetadata | null> {
-  if (isRecording) return null;
-
+export async function saveRecordingFromUpload(
+  file: File | Blob,
+  peakDb: number,
+  durationSeconds: number
+): Promise<RecordingMetadata> {
   await ensureRecordingsDir();
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const filename = `${timestamp}.wav`;
+  const ext = file.type.includes("webm") ? "webm" : "wav";
+  const filename = `${timestamp}.${ext}`;
   const filepath = join(RECORDINGS_DIR, filename);
 
-  isRecording = true;
+  await Bun.write(filepath, file);
 
-  try {
-    let proc: ReturnType<typeof Bun.spawn>;
-    if (isMac) {
-      proc = Bun.spawn(
-        [
-          "rec",
-          "-q",
-          "-r",
-          "16000",
-          "-c",
-          "1",
-          "-b",
-          "16",
-          "-e",
-          "signed-integer",
-          filepath,
-          "trim",
-          "0",
-          String(config.recordDurationSeconds),
-        ],
-        { stdout: "pipe", stderr: "pipe" }
-      );
-    } else {
-      proc = Bun.spawn(
-        [
-          "arecord",
-          "-q",
-          "-f",
-          "S16_LE",
-          "-r",
-          "16000",
-          "-c",
-          "1",
-          "-d",
-          String(config.recordDurationSeconds),
-          filepath,
-        ],
-        { stdout: "pipe", stderr: "pipe" }
-      );
-    }
-    await proc.exited;
-    if (proc.exitCode !== 0) return null;
+  const meta: RecordingMetadata = {
+    id: filename.replace(/\.[^.]+$/, ""),
+    filename,
+    timestamp: new Date().toISOString(),
+    peakDb,
+    durationSeconds,
+  };
 
-    const meta: RecordingMetadata = {
-      id: filename.replace(".wav", ""),
-      filename,
-      timestamp: new Date().toISOString(),
-      peakDb,
-      durationSeconds: config.recordDurationSeconds,
-    };
+  const list = await loadMetadata();
+  list.unshift(meta);
+  await saveMetadata(list);
 
-    const list = await loadMetadata();
-    list.unshift(meta);
-    await saveMetadata(list);
-
-    return meta;
-  } catch {
-    return null;
-  } finally {
-    isRecording = false;
-  }
+  return meta;
 }
 
 export async function getRecordings(): Promise<RecordingMetadata[]> {
