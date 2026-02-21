@@ -1,7 +1,7 @@
 import { join } from "path";
 import { DEFAULT_CONFIG, type AppConfig } from "../shared/types.js";
 import clientHtml from "../client/index.html";
-import { getRecordings, getRecordingsDir, saveRecordingFromUpload } from "./recorder.js";
+import { getRecordings, getRecordingsDir, initRecorder, saveRecordingFromUpload } from "./recorder.js";
 
 const CONFIG_FILE = join(import.meta.dir, "../../config.json");
 
@@ -63,7 +63,9 @@ const server = Bun.serve({
           return new Response("Missing audio file", { status: 400 });
         }
 
-        const meta = await saveRecordingFromUpload(audio, peakDb, durationSeconds);
+        const classification = String(formData.get("classification") || "").trim() || undefined;
+        const meta = await saveRecordingFromUpload(audio, peakDb, durationSeconds, classification);
+        console.log("[Recorder] Saved:", meta.filename, "peakDb:", peakDb);
         return Response.json(meta);
       },
     },
@@ -96,5 +98,6 @@ const server = Bun.serve({
 });
 
 await loadConfig();
+await initRecorder();
 
 console.log(`Decibel Reader server running at http://localhost:${server.port}`);

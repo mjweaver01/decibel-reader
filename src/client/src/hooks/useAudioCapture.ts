@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { RELATED_SOUND_LABELS } from "../../../shared/types";
 import { getClassifier, classifyAudio } from "../lib/soundClassifier";
 
 const MIN_DB = -60;
@@ -73,11 +74,12 @@ export function useAudioCapture({
   const sampleRateRef = useRef(48000);
 
   const uploadRecording = useCallback(
-    async (blob: Blob, peakDb: number) => {
+    async (blob: Blob, peakDb: number, classification?: string) => {
       const formData = new FormData();
       formData.append("audio", blob, "recording.webm");
       formData.append("peakDb", String(peakDb));
       formData.append("durationSeconds", String(recordDurationMs / 1000));
+      if (classification) formData.append("classification", classification);
 
       const res = await fetch("/api/recordings", {
         method: "POST",
@@ -89,16 +91,16 @@ export function useAudioCapture({
     [recordDurationMs]
   );
 
-  const startRecordingRef = useRef<(dB: number) => void>(() => {});
+  const startRecordingRef = useRef<(dB: number, classification?: string) => void>(() => {});
   const startRecording = useCallback(
-    (peakDb: number) => {
+    (peakDb: number, classification?: string) => {
       const stream = streamRef.current;
       if (!stream || isRecording) {
         console.log("[DecibelReader] startRecording skipped:", !stream ? "no stream" : "already recording");
         return;
       }
 
-      console.log("[DecibelReader] Recording started, duration:", recordDurationMs, "ms");
+      console.log("[DecibelReader] Recording started, duration:", recordDurationMs, "ms", "classification:", classification ?? "(none)");
       setIsRecording(true);
       const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
       recorderRef.current = recorder;
@@ -115,7 +117,7 @@ export function useAudioCapture({
         console.log("[DecibelReader] Recording stopped, blob size:", blob.size);
         if (blob.size > 0) {
           try {
-            await uploadRecording(blob, peakDb);
+            await uploadRecording(blob, peakDb, classification);
             console.log("[DecibelReader] Upload successful");
             onRecordingUploaded?.();
           } catch (err) {
@@ -162,40 +164,52 @@ export function useAudioCapture({
           return;
         }
 
+        // Use low threshold so we get results; filter by classificationMinScore ourselves
         const classifier = await getClassifier({
-          scoreThreshold: classificationMinScore,
+          scoreThreshold: 0.05,
           maxResults: 5,
         });
+        console.log("[DecibelReader] Running classification, samples:", resampled.length);
         const results = classifyAudio(classifier, resampled, 16000);
-        const topCategory = results[0]?.classifications[0]?.categories[0];
+        const categories = results[0]?.classifications?.[0]?.categories ?? [];
+        const topCategory = categories[0];
 
-        console.log("[DecibelReader] Classification results:", topCategory ? {
-          label: topCategory.displayName || topCategory.categoryName,
-          categoryName: topCategory.categoryName,
-          score: (topCategory.score * 100).toFixed(1) + "%",
-          minScore: classificationMinScore * 100 + "%",
-        } : "no results");
+        if (categories.length === 0) {
+          console.log("[DecibelReader] Classification: no categories (all filtered by model)");
+        } else {
+          console.log(
+            "[DecibelReader] Classification:",
+            topCategory.categoryName || topCategory.displayName,
+            (topCategory.score * 100).toFixed(1) + "%",
+            "min:",
+            classificationMinScore * 100 + "%"
+          );
+        }
 
         if (topCategory) {
           const label = topCategory.displayName || topCategory.categoryName;
           setLastDetection(`${label} (${(topCategory.score * 100).toFixed(0)}%)`);
 
-          const match = soundTypesToCheck.some(
-            (selected) =>
-              topCategory.categoryName === selected ||
-              topCategory.displayName === selected ||
-              topCategory.categoryName.toLowerCase().includes(selected.toLowerCase())
-          );
-          console.log("[DecibelReader] Match?", match, "| score OK?", topCategory.score >= classificationMinScore, "| recording:", match && topCategory.score >= classificationMinScore);
-          if (match && topCategory.score >= classificationMinScore) {
+          const categoryLabel = (topCategory.categoryName || topCategory.displayName || "").toLowerCase();
+          const match = soundTypesToCheck.some((selected) => {
+            const exact = topCategory.categoryName === selected || topCategory.displayName === selected;
+            if (exact) return true;
+            const related = RELATED_SOUND_LABELS[selected];
+            if (related?.some((r) => r.toLowerCase() === categoryLabel)) return true;
+            return topCategory.categoryName?.toLowerCase().includes(selected.toLowerCase()) ?? false;
+          });
+          const scoreOk = topCategory.score >= classificationMinScore;
+          const willRecord = match && scoreOk;
+          console.log("[DecibelReader] Match:", match, "| score OK:", scoreOk, "| will record:", willRecord);
+          if (willRecord) {
             console.log("[DecibelReader] -> Starting recording");
-            startRecordingRef.current(peakDb);
+            startRecordingRef.current(peakDb, label);
           }
         } else {
           setLastDetection(null);
         }
       } catch (err) {
-        console.warn("Classification failed:", err);
+        console.error("[DecibelReader] Classification failed:", err);
         setLastDetection(null);
       }
     },

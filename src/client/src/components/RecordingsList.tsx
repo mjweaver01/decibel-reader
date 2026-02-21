@@ -51,7 +51,9 @@ export function RecordingsList({ refreshTrigger = 0 }: RecordingsListProps) {
     <div className="rounded-lg bg-zinc-900 p-6">
       <h2 className="mb-4 text-lg font-semibold text-zinc-100">Recordings</h2>
       {recordings.length === 0 ? (
-        <p className="text-zinc-500">No recordings yet. Threshold exceeded recordings will appear here.</p>
+        <p className="text-zinc-500">
+          No recordings yet. When a detected sound exceeds the threshold, recordings will appear here.
+        </p>
       ) : (
         <div className="space-y-2">
           {recordings.map((r) => (
@@ -63,6 +65,12 @@ export function RecordingsList({ refreshTrigger = 0 }: RecordingsListProps) {
                 <p className="truncate text-sm text-zinc-100">{formatDate(r.timestamp)}</p>
                 <p className="text-xs text-zinc-500">
                   Peak: {r.peakDb.toFixed(1)} dB · {r.durationSeconds}s
+                  {r.classification && (
+                    <>
+                      {" · "}
+                      <span className="text-emerald-400/90">{r.classification}</span>
+                    </>
+                  )}
                 </p>
               </div>
               <div className="ml-2 flex shrink-0 gap-2">

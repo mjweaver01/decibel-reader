@@ -181,12 +181,13 @@ export function AudioVisualizer({ stream, isRecording, dB = 0, threshold = -20 }
           </span>
           <span className="text-sm text-zinc-500">dB</span>
         </div>
-        {isRecording && (
-          <div className="flex items-center gap-2 rounded-full bg-red-500/20 px-3 py-1.5 ring-1 ring-red-500/40">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
-            <span className="text-xs font-medium text-red-400">Recording</span>
-          </div>
-        )}
+        <span
+          className={`h-1.5 w-1.5 shrink-0 rounded-full transition-opacity ${
+            isRecording ? "bg-red-500 opacity-100 animate-pulse" : "bg-transparent opacity-0"
+          }`}
+          title={isRecording ? "Recording" : undefined}
+          aria-hidden={!isRecording}
+        />
       </div>
 
       {/* Canvas */}

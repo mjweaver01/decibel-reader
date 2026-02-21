@@ -166,7 +166,10 @@ export function ThresholdConfig({ config, onSave, devices }: ThresholdConfigProp
             onChange={(e) => setRecordDurationSeconds(Number(e.target.value))}
             className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           >
+            <option value={0.1}>0.1 seconds</option>
+            <option value={0.25}>0.25 seconds</option>
             <option value={0.5}>0.5 seconds</option>
+            <option value={0.75}>0.75 seconds</option>
             <option value={1}>1 second</option>
             <option value={2}>2 seconds</option>
             <option value={3}>3 seconds</option>

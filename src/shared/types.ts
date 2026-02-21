@@ -15,7 +15,15 @@ export const DEFAULT_CONFIG: AppConfig = {
   recordDurationSeconds: 0.5,
   captureIntervalMs: 500,
   soundTypes: ["Throat clearing"],
-  classificationMinScore: 0.5,
+  classificationMinScore: 0.3,
+};
+
+/** Related YAMNet labels - when user selects one, we also accept the others from classifier */
+export const RELATED_SOUND_LABELS: Record<string, string[]> = {
+  Conversation: ["Speech", "Conversation"],
+  Speech: ["Speech", "Conversation"],
+  "Throat clearing": ["Throat clearing", "Cough", "Gargling", "Speech"],
+  Cough: ["Throat clearing", "Cough", "Speech"],
 };
 
 /** YAMNet sound classes for the UI (display_name from yamnet_class_map) */
@@ -58,4 +66,6 @@ export interface RecordingMetadata {
   timestamp: string;
   peakDb: number;
   durationSeconds: number;
+  /** Detected sound classification (e.g. "Speech", "Throat clearing") */
+  classification?: string;
 }
