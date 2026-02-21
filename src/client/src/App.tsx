@@ -10,18 +10,23 @@ const API_BASE = "/api";
 
 export default function App() {
   const [config, setConfig] = useState<AppConfig>({
-    thresholdDb: 60,
-    recordDurationSeconds: 10,
+    thresholdDb: -30,
+    recordDurationSeconds: 0.5,
     captureIntervalMs: 500,
+    soundTypes: ["Throat clearing"],
+    classificationMinScore: 0.5,
   });
   const [recordingsVersion, setRecordingsVersion] = useState(0);
   const [micEnabled, setMicEnabled] = useState(false);
 
-  const { dB, isRecording, error, stream } = useAudioCapture({
+  const { dB, isRecording, error, stream, lastDetection, devices } = useAudioCapture({
     thresholdDb: config.thresholdDb,
     recordDurationMs: config.recordDurationSeconds * 1000,
     enabled: micEnabled,
     onRecordingUploaded: useCallback(() => setRecordingsVersion((v) => v + 1), []),
+    soundTypes: config.soundTypes ?? [],
+    classificationMinScore: config.classificationMinScore ?? 0.5,
+    deviceId: config.deviceId || undefined,
   });
 
   useEffect(() => {
@@ -29,6 +34,11 @@ export default function App() {
       .then((r) => r.json())
       .then(setConfig)
       .catch(() => {});
+  }, []);
+
+  const restartMonitoring = useCallback(() => {
+    setMicEnabled(false);
+    setTimeout(() => setMicEnabled(true), 100);
   }, []);
 
   const handleSaveConfig = async (updates: Partial<AppConfig>) => {
@@ -39,6 +49,7 @@ export default function App() {
     });
     const data = await res.json();
     setConfig(data);
+    if (updates.deviceId !== undefined && micEnabled) restartMonitoring();
   };
 
   return (
@@ -55,6 +66,9 @@ export default function App() {
               <p className="mb-4 text-zinc-400">
                 Click &quot;Start monitoring&quot; to begin. You&apos;ll be asked to allow microphone access.
               </p>
+              <p className="mb-4 text-xs text-zinc-500">
+                On Raspberry Pi, connect a USB microphone and ensure it&apos;s recognized before starting.
+              </p>
               <button
                 onClick={() => setMicEnabled(true)}
                 className="rounded-md bg-emerald-600 px-4 py-2 font-medium text-white hover:bg-emerald-500"
@@ -70,19 +84,26 @@ export default function App() {
               </p>
             </div>
           ) : (
-            <AudioVisualizer
-              stream={stream}
-              isRecording={isRecording}
-              dB={dB}
-              threshold={config.thresholdDb}
-            />
+            <>
+              <AudioVisualizer
+                stream={stream}
+                isRecording={isRecording}
+                dB={dB}
+                threshold={config.thresholdDb}
+              />
+              {lastDetection && (
+                <div className="rounded-lg bg-zinc-900/80 px-4 py-2 text-sm text-zinc-400">
+                  Last detected: <span className="font-medium text-emerald-400">{lastDetection}</span>
+                </div>
+              )}
+            </>
           )}
-          <ThresholdConfig config={config} onSave={handleSaveConfig} />
+          <ThresholdConfig config={config} onSave={handleSaveConfig} devices={devices} />
           <RecordingsList refreshTrigger={recordingsVersion} />
         </main>
 
         <footer className="mt-12 text-center text-sm text-zinc-500">
-          Browser audio · dBFS (device-dependent)
+          Throat clearing detection · Browser audio
         </footer>
       </div>
     </div>

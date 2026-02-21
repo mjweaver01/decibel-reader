@@ -1,12 +1,13 @@
 # Decibel Reader
 
-A browser-based audio monitor that displays live decibel levels and records when a configurable threshold is exceeded.
+A browser-based audio monitor that records when someone clears their throat (or other configurable sounds). Displays live decibel levels and uses ML-based sound classification to detect specific events.
 
 ## Tech Stack
 
 - **Backend**: Bun (HTTP server)
 - **Frontend**: React, Tailwind CSS v4 (via bun-plugin-tailwind)
 - **Audio**: Browser Web Audio API + MediaRecorder (no system dependencies)
+- **Sound detection**: MediaPipe Audio Classifier (YAMNet) for specific sound types
 
 ## Requirements
 
@@ -42,8 +43,10 @@ The build bundles the server and client. The server runs on port 3000.
 
 ## Configuration
 
-- **Threshold (dB)**: Record when sound exceeds this level. Values are dBFS (decibels relative to full scale); consumer USB mics are not calibrated for dB SPL, so thresholds are device-dependent.
-- **Record Duration**: How long to record when the threshold is exceeded (5, 10, 15, or 30 seconds).
+- **Threshold (dB)**: Gate for detection—only consider classification when sound exceeds this level.
+- **Sound types**: Default is "Throat clearing" for the primary use case. Leave empty to record any loud sound, or select other types (Cough, Sneeze, Dog, etc.).
+- **Min confidence**: Minimum classification confidence (0–100%) to trigger recording.
+- **Record Duration**: How long to record when triggered (5, 10, 15, or 30 seconds).
 
 Config is persisted in `config.json` and can be changed via the web UI.
 

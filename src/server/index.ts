@@ -9,8 +9,16 @@ let config: AppConfig = { ...DEFAULT_CONFIG };
 
 async function loadConfig(): Promise<AppConfig> {
   try {
-    const data = await Bun.file(CONFIG_FILE).json();
-    config = { ...DEFAULT_CONFIG, ...data };
+    const data = (await Bun.file(CONFIG_FILE).json()) as Partial<AppConfig>;
+    config = {
+      ...DEFAULT_CONFIG,
+      ...data,
+      soundTypes: Array.isArray(data?.soundTypes) ? data.soundTypes : DEFAULT_CONFIG.soundTypes,
+      classificationMinScore:
+        typeof data?.classificationMinScore === "number"
+          ? data.classificationMinScore
+          : DEFAULT_CONFIG.classificationMinScore,
+    };
   } catch {
     config = { ...DEFAULT_CONFIG };
   }
@@ -35,6 +43,10 @@ const server = Bun.serve({
           config.recordDurationSeconds = body.recordDurationSeconds;
         if (typeof body.captureIntervalMs === "number")
           config.captureIntervalMs = body.captureIntervalMs;
+        if (Array.isArray(body.soundTypes)) config.soundTypes = body.soundTypes;
+        if (typeof body.classificationMinScore === "number")
+          config.classificationMinScore = body.classificationMinScore;
+        if (body.deviceId !== undefined) config.deviceId = body.deviceId || undefined;
         await saveConfig();
         return Response.json(config);
       },
@@ -45,7 +57,7 @@ const server = Bun.serve({
         const formData = await req.formData();
         const audio = formData.get("audio");
         const peakDb = parseFloat(String(formData.get("peakDb") || "0"));
-        const durationSeconds = parseInt(String(formData.get("durationSeconds") || "10"), 10);
+        const durationSeconds = parseFloat(String(formData.get("durationSeconds") || "0.5"));
 
         if (!audio || !(audio instanceof Blob)) {
           return new Response("Missing audio file", { status: 400 });
