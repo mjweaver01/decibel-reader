@@ -157,12 +157,11 @@ export function useAudioCapture({
         soundTypesToCheck
       );
 
-      if (soundTypesToCheck.length === 0) {
+      const recordAnyLoudSound = soundTypesToCheck.length === 0;
+      if (recordAnyLoudSound) {
         console.log(
-          '[DecibelReader] No sound types -> recording any loud sound'
+          '[DecibelReader] No sound types -> recording any loud sound, will classify'
         );
-        startRecordingRef.current(peakDb);
-        return;
       }
 
       try {
@@ -184,6 +183,9 @@ export function useAudioCapture({
             '[DecibelReader] Buffer too small for classification:',
             resampled.length
           );
+          if (recordAnyLoudSound) {
+            startRecordingRef.current(peakDb);
+          }
           return;
         }
 
@@ -227,9 +229,13 @@ export function useAudioCapture({
           });
           const match = !!matchedSelected;
           const scoreOk = topCategory.score >= classificationMinScore;
-          const willRecord = match && scoreOk;
-          // Save the matched type (e.g. Throat clearing) not YAMNet's top (e.g. Speech)
-          const classificationToSave = matchedSelected ?? label;
+          const willRecord = recordAnyLoudSound
+            ? scoreOk
+            : match && scoreOk;
+          // When no types: use top classification. When types selected: use matched one
+          const classificationToSave = recordAnyLoudSound
+            ? label
+            : matchedSelected ?? label;
           console.log(
             '[DecibelReader] Match:',
             match,
@@ -245,12 +251,18 @@ export function useAudioCapture({
             );
             startRecordingRef.current(peakDb, classificationToSave);
           }
+        } else if (recordAnyLoudSound) {
+          // No classification result but we record any loud sound - save without classification
+          startRecordingRef.current(peakDb);
         } else {
           setLastDetection(null);
         }
       } catch (err) {
         console.error('[DecibelReader] Classification failed:', err);
         setLastDetection(null);
+        if (recordAnyLoudSound) {
+          startRecordingRef.current(peakDb);
+        }
       }
     },
     [soundTypes, classificationMinScore]
