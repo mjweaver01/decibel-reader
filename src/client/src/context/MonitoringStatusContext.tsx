@@ -2,11 +2,20 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useState,
   type ReactNode,
 } from 'react';
+import { DEFAULT_CONFIG, type AppConfig } from '../../../shared/types';
+import {
+  useAudioCapture,
+  type MediaDeviceInfo,
+} from '../hooks/useAudioCapture';
+
+export type { MediaDeviceInfo };
 
 const MIC_ENABLED_KEY = 'decibel-reader:micEnabled';
+const API_BASE = '/api';
 
 function getStoredMicEnabled(): boolean {
   if (typeof sessionStorage === 'undefined') return false;
@@ -38,36 +47,117 @@ const defaultStatus: MonitoringStatus = {
   error: null,
 };
 
-const MonitoringStatusContext = createContext<{
+interface MonitoringContextValue {
   status: MonitoringStatus;
   setStatus: (s: MonitoringStatus) => void;
   micEnabled: boolean;
   setMicEnabled: (v: boolean) => void;
-}>({
-  status: defaultStatus,
-  setStatus: () => {},
-  micEnabled: false,
-  setMicEnabled: () => {},
-});
+  // Audio capture (persists across page navigation)
+  dB: number;
+  isRecording: boolean;
+  error: string | null;
+  stream: MediaStream | null;
+  lastDetection: string | null;
+  devices: MediaDeviceInfo[];
+  config: AppConfig;
+  setConfig: (c: AppConfig) => void;
+  handleSaveConfig: (updates: Partial<AppConfig>) => Promise<void>;
+  recordingsVersion: number;
+}
+
+const MonitoringStatusContext = createContext<MonitoringContextValue | null>(
+  null
+);
 
 export function MonitoringStatusProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<MonitoringStatus>(defaultStatus);
   const [micEnabled, setMicEnabledState] = useState(getStoredMicEnabled);
+  const [config, setConfig] = useState<AppConfig>(() => ({ ...DEFAULT_CONFIG }));
+  const [recordingsVersion, setRecordingsVersion] = useState(0);
 
   const setMicEnabled = useCallback((v: boolean) => {
     setMicEnabledState(v);
     setStoredMicEnabled(v);
   }, []);
 
+  const { dB, isRecording, error, stream, lastDetection, devices } =
+    useAudioCapture({
+      thresholdDb: config.thresholdDb,
+      recordDurationMs: config.recordDurationSeconds * 1000,
+      enabled: micEnabled,
+      onRecordingUploaded: useCallback(
+        () => setRecordingsVersion(v => v + 1),
+        []
+      ),
+      soundTypes: config.soundTypes ?? [],
+      classificationMinScore: config.classificationMinScore ?? 0.5,
+      deviceId: config.deviceId || undefined,
+    });
+
+  useEffect(() => {
+    setStatus({
+      connected: micEnabled && !error,
+      isRecording,
+      error: error ?? null,
+    });
+  }, [micEnabled, isRecording, error, setStatus]);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/config`)
+      .then(r => r.json())
+      .then(setConfig)
+      .catch(() => {});
+  }, []);
+
+  const restartMonitoring = useCallback(() => {
+    setMicEnabledState(false);
+    setTimeout(() => setMicEnabledState(true), 100);
+  }, []);
+
+  const handleSaveConfig = useCallback(
+    async (updates: Partial<AppConfig>) => {
+      const res = await fetch(`${API_BASE}/config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      const data = await res.json();
+      setConfig(data);
+      if (updates.deviceId !== undefined && micEnabled) restartMonitoring();
+    },
+    [micEnabled, restartMonitoring]
+  );
+
+  const value: MonitoringContextValue = {
+    status,
+    setStatus,
+    micEnabled,
+    setMicEnabled,
+    dB,
+    isRecording,
+    error,
+    stream,
+    lastDetection,
+    devices,
+    config,
+    setConfig,
+    handleSaveConfig,
+    recordingsVersion,
+  };
+
   return (
-    <MonitoringStatusContext.Provider
-      value={{ status, setStatus, micEnabled, setMicEnabled }}
-    >
+    <MonitoringStatusContext.Provider value={value}>
       {children}
     </MonitoringStatusContext.Provider>
   );
 }
 
 export function useMonitoringStatus() {
-  return useContext(MonitoringStatusContext);
+  const ctx = useContext(MonitoringStatusContext);
+  if (!ctx) {
+    throw new Error(
+      'useMonitoringStatus must be used within MonitoringStatusProvider'
+    );
+  }
+  return ctx;
 }
