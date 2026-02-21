@@ -1,41 +1,9 @@
-import { join } from 'path';
 import clientHtml from '@client/index.html';
-import { DEFAULT_CONFIG, type AppConfig } from '@shared/types';
-import {
-  getRecordings,
-  getRecordingsDir,
-  initRecorder,
-  saveRecordingFromUpload,
-} from './recorder';
-import { logger } from '@shared/logger';
-
-const CONFIG_FILE = join(import.meta.dir, '../../config.json');
-
-let config: AppConfig = { ...DEFAULT_CONFIG };
-
-async function loadConfig(): Promise<AppConfig> {
-  try {
-    const data = (await Bun.file(CONFIG_FILE).json()) as Partial<AppConfig>;
-    config = {
-      ...DEFAULT_CONFIG,
-      ...data,
-      soundTypes: Array.isArray(data?.soundTypes)
-        ? data.soundTypes
-        : DEFAULT_CONFIG.soundTypes,
-      classificationMinScore:
-        typeof data?.classificationMinScore === 'number'
-          ? data.classificationMinScore
-          : DEFAULT_CONFIG.classificationMinScore,
-    };
-  } catch {
-    config = { ...DEFAULT_CONFIG };
-  }
-  return config;
-}
-
-async function saveConfig(): Promise<void> {
-  await Bun.write(CONFIG_FILE, JSON.stringify(config, null, 2));
-}
+import { loadConfig } from './config';
+import { initRecorder } from './recorder';
+import { configApi } from './api/config';
+import { recordingsApi } from './api/recordings';
+import { recordingsIdApi } from './api/recordings-id';
 
 const server = Bun.serve({
   port: 3000,
@@ -43,79 +11,9 @@ const server = Bun.serve({
   routes: {
     '/': clientHtml,
     '/analytics': clientHtml,
-    '/api/config': {
-      GET: () => Response.json(config),
-      POST: async req => {
-        const body = (await req.json()) as Partial<AppConfig>;
-        if (typeof body.thresholdDb === 'number')
-          config.thresholdDb = body.thresholdDb;
-        if (typeof body.recordDurationSeconds === 'number')
-          config.recordDurationSeconds = body.recordDurationSeconds;
-        if (typeof body.captureIntervalMs === 'number')
-          config.captureIntervalMs = body.captureIntervalMs;
-        if (Array.isArray(body.soundTypes)) config.soundTypes = body.soundTypes;
-        if (typeof body.classificationMinScore === 'number')
-          config.classificationMinScore = body.classificationMinScore;
-        if (body.deviceId !== undefined)
-          config.deviceId = body.deviceId || undefined;
-        await saveConfig();
-        return Response.json(config);
-      },
-    },
-    '/api/recordings': {
-      GET: async () => Response.json(await getRecordings()),
-      POST: async req => {
-        const formData = await req.formData();
-        const audio = formData.get('audio');
-        const peakDb = parseFloat(String(formData.get('peakDb') || '0'));
-        const durationSeconds = parseFloat(
-          String(formData.get('durationSeconds') || '0.5')
-        );
-
-        if (!audio || !(audio instanceof Blob)) {
-          return new Response('Missing audio file', { status: 400 });
-        }
-
-        const classification =
-          String(formData.get('classification') || '').trim() || undefined;
-        const meta = await saveRecordingFromUpload(
-          audio,
-          peakDb,
-          durationSeconds,
-          classification
-        );
-        logger('[Recorder] Saved:', meta.filename, 'peakDb:', peakDb);
-        return Response.json(meta);
-      },
-    },
-    '/api/recordings/:id': {
-      GET: async req => {
-        const id = decodeURIComponent(req.params.id).replace(
-          /\.(webm|wav)$/,
-          ''
-        );
-        const dir = getRecordingsDir();
-        // Try both .webm and .wav
-        for (const ext of ['webm', 'wav']) {
-          const filepath = join(dir, `${id}.${ext}`);
-          try {
-            const file = Bun.file(filepath);
-            const exists = await file.exists();
-            if (exists) {
-              return new Response(file, {
-                headers: {
-                  'Content-Type': ext === 'webm' ? 'audio/webm' : 'audio/wav',
-                  'Content-Disposition': `attachment; filename="${id}.${ext}"`,
-                },
-              });
-            }
-          } catch {
-            // try next
-          }
-        }
-        return new Response('Not found', { status: 404 });
-      },
-    },
+    '/api/config': configApi,
+    '/api/recordings': recordingsApi,
+    '/api/recordings/:id': recordingsIdApi,
   },
 });
 
@@ -123,11 +21,10 @@ await loadConfig();
 await initRecorder();
 
 console.log(`
-  Decibel Reader 
-  ----------------
+  --------------------------------
+         📢 Decibel Reader 
+  --------------------------------
   server: http://localhost:${server.port}
   environment: ${process.env.NODE_ENV ?? 'development'}
-  config:
-  ${JSON.stringify(config, null, 2)}
-  ----------------
+  --------------------------------
 `);

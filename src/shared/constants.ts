@@ -17,7 +17,7 @@ export const BUFFER_SIZE = 72000;
 export const DEFAULT_CONFIG: AppConfig = {
   thresholdDb: -30,
   recordDurationSeconds: 1,
-  captureIntervalMs: 100,
+  captureIntervalMs: 250,
   soundTypes: ['Throat clearing', 'Cough', 'Burping, eructation'],
   classificationMinScore: 0.2,
 };
