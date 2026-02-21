@@ -9,6 +9,13 @@ export function Header() {
     <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
       <div className="flex items-center gap-4">
         <h1 className="text-2xl font-bold text-zinc-100">Decibel Reader</h1>
+      </div>
+      <div className="flex items-center gap-4">
+        <StatusIndicator
+          connected={status.connected}
+          isRecording={status.isRecording}
+          error={status.error}
+        />
         <nav className="flex gap-1 rounded-lg bg-zinc-900 p-1">
           <NavLink
             to="/"
@@ -37,11 +44,6 @@ export function Header() {
           </NavLink>
         </nav>
       </div>
-      <StatusIndicator
-        connected={status.connected}
-        isRecording={status.isRecording}
-        error={status.error}
-      />
     </header>
   );
 }

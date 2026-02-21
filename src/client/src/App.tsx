@@ -12,7 +12,7 @@ export default function App() {
       <div className="mx-auto px-4 py-8 max-w-5xl">
         <Header />
 
-        <main className="space-y-6">
+        <main className="space-y-4 md:space-y-6">
           <Routes>
             <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/" element={<MonitorPage />} />

@@ -97,7 +97,9 @@ export function AnalyticsPage() {
     useState<string>('all');
   const [chartView, setChartView] = useState<ChartView>('time');
   const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
-  const [visibleClassifications, setVisibleClassifications] = useState<Set<string>>(new Set());
+  const [visibleClassifications, setVisibleClassifications] = useState<
+    Set<string>
+  >(new Set());
   const [stacked, setStacked] = useState(true);
 
   const fetchRecordings = useCallback(async () => {
@@ -252,7 +254,7 @@ export function AnalyticsPage() {
 
   if (loading) {
     return (
-      <div className="rounded-lg bg-zinc-900 p-6">
+      <div className="rounded-lg bg-zinc-900 p-6 ring-1 ring-zinc-700/50">
         <h2 className="mb-4 text-lg font-semibold text-zinc-100">Analytics</h2>
         <p className="text-zinc-500">Loading recordings...</p>
       </div>
@@ -260,7 +262,7 @@ export function AnalyticsPage() {
   }
 
   return (
-    <div className="rounded-lg bg-zinc-900 p-6">
+    <div className="rounded-lg bg-zinc-900 p-6 ring-1 ring-zinc-700/50">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <h2 className="text-lg font-semibold text-zinc-100">Analytics</h2>
         <button
@@ -290,16 +292,16 @@ export function AnalyticsPage() {
             <label className="mb-1 block text-xs text-zinc-500">
               Time grouping
             </label>
-          <select
-            value={grouping}
-            onChange={e => setGrouping(e.target.value as TimeGrouping)}
-            className="rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-          >
-            <option value="minute">By minute</option>
-            <option value="hour">By hour</option>
-            <option value="day">By day</option>
-            <option value="week">By week</option>
-          </select>
+            <select
+              value={grouping}
+              onChange={e => setGrouping(e.target.value as TimeGrouping)}
+              className="rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            >
+              <option value="minute">By minute</option>
+              <option value="hour">By hour</option>
+              <option value="day">By day</option>
+              <option value="week">By week</option>
+            </select>
           </div>
         )}
         <div>
@@ -336,7 +338,9 @@ export function AnalyticsPage() {
         </div>
         {chartView === 'time' && (
           <div>
-            <label className="mb-1 block text-xs text-zinc-500">Chart type</label>
+            <label className="mb-1 block text-xs text-zinc-500">
+              Chart type
+            </label>
             <select
               value={chartType}
               onChange={e => setChartType(e.target.value as 'bar' | 'line')}
@@ -350,53 +354,53 @@ export function AnalyticsPage() {
         {chartView === 'time' &&
           classificationFilter === 'all' &&
           chartType === 'bar' && (
-          <div className="flex items-end">
-            <label className="flex cursor-pointer items-center gap-2">
-              <input
-                type="checkbox"
-                checked={stacked}
-                onChange={e => setStacked(e.target.checked)}
-                className="rounded border-zinc-600 bg-zinc-800 text-emerald-600 focus:ring-emerald-500"
-              />
-              <span className="text-sm text-zinc-400">
-                Stack by classification
-              </span>
-            </label>
-          </div>
-        )}
+            <div className="flex items-end">
+              <label className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={stacked}
+                  onChange={e => setStacked(e.target.checked)}
+                  className="rounded border-zinc-600 bg-zinc-800 text-emerald-600 focus:ring-emerald-500"
+                />
+                <span className="text-sm text-zinc-400">
+                  Stack by classification
+                </span>
+              </label>
+            </div>
+          )}
         {chartView === 'time' &&
           classificationFilter === 'all' &&
           chartClassifications.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-zinc-500">
-              Show in chart (click to toggle):
-            </span>
-            {chartClassifications.map(cls => (
-              <button
-                key={cls}
-                type="button"
-                onClick={() => toggleVisibleClassification(cls)}
-                className={`rounded px-2 py-1 text-xs ${
-                  visibleClassifications.size === 0 ||
-                  visibleClassifications.has(cls)
-                    ? 'bg-emerald-600/30 text-emerald-400'
-                    : 'bg-zinc-700/50 text-zinc-500 line-through'
-                }`}
-              >
-                {cls}
-              </button>
-            ))}
-            {visibleClassifications.size > 0 && (
-              <button
-                type="button"
-                onClick={() => setVisibleClassifications(new Set())}
-                className="rounded px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-700"
-              >
-                Reset
-              </button>
-            )}
-          </div>
-        )}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-zinc-500">
+                Show in chart (click to toggle):
+              </span>
+              {chartClassifications.map(cls => (
+                <button
+                  key={cls}
+                  type="button"
+                  onClick={() => toggleVisibleClassification(cls)}
+                  className={`rounded px-2 py-1 text-xs ${
+                    visibleClassifications.size === 0 ||
+                    visibleClassifications.has(cls)
+                      ? 'bg-emerald-600/30 text-emerald-400'
+                      : 'bg-zinc-700/50 text-zinc-500 line-through'
+                  }`}
+                >
+                  {cls}
+                </button>
+              ))}
+              {visibleClassifications.size > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setVisibleClassifications(new Set())}
+                  className="rounded px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-700"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+          )}
       </div>
 
       {/* Summary */}

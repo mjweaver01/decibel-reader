@@ -2,10 +2,10 @@
 [data-title] {
   position: relative;
   /* Theme-aware tooltip tokens */
-  --tooltip-bg: #fff;
-  --tooltip-text: #111827;
-  --tooltip-border: rgba(17, 24, 39, 0.12);
-  --tooltip-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  --tooltip-bg: var(--color-zinc-900);
+  --tooltip-text: var(--color-zinc-100);
+  --tooltip-border: var(--color-zinc-700);
+  --tooltip-shadow: 0 8px 24px var(--color-zinc-800);
 }
 
 /* Tooltip position overrides (opt-in per element) */
@@ -31,14 +31,6 @@
   left: auto;
   right: 0;
   transform: translate(0, -2px);
-}
-
-/* Dark mode tooltip overrides */
-.dark [data-title] {
-  --tooltip-bg: var(--color-surface-secondary);
-  --tooltip-text: var(--color-text);
-  --tooltip-border: var(--color-surface-secondary);
-  --tooltip-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
 }
 
 [data-title]::before,

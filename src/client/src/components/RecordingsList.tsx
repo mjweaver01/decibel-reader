@@ -102,7 +102,7 @@ export function RecordingsList({ refreshTrigger = 0 }: RecordingsListProps) {
   const hasMore = visibleCount < recordings.length;
 
   return (
-    <div className="rounded-lg bg-zinc-900 p-6">
+    <div className="rounded-lg bg-zinc-900 p-6 ring-1 ring-zinc-700/50">
       <h2 className="mb-4 text-lg font-semibold text-zinc-100">Recordings</h2>
       {recordings.length === 0 ? (
         <p className="text-zinc-500">

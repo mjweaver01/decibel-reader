@@ -4,17 +4,13 @@ import { getYamnetLabels } from '../lib/yamnetLabels';
 import type { MediaDeviceInfo } from '../hooks/useAudioCapture';
 import { SoundTypeMultiselect } from './SoundTypeMultiselect';
 
-interface ThresholdConfigProps {
+interface ConfigurationProps {
   config: AppConfig;
   onSave: (config: Partial<AppConfig>) => Promise<void>;
   devices: MediaDeviceInfo[];
 }
 
-export function ThresholdConfig({
-  config,
-  onSave,
-  devices,
-}: ThresholdConfigProps) {
+export function Configuration({ config, onSave, devices }: ConfigurationProps) {
   const [thresholdDb, setThresholdDb] = useState(config.thresholdDb);
   const [thresholdInput, setThresholdInput] = useState(
     String(Math.max(-60, Math.min(0, config.thresholdDb)))
@@ -134,7 +130,10 @@ export function ThresholdConfig({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-lg bg-zinc-900 p-6">
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-lg bg-zinc-900 p-6 ring-1 ring-zinc-700/50"
+    >
       <h2 className="mb-4 text-lg font-semibold text-zinc-100">
         Configuration
       </h2>
