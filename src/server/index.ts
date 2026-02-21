@@ -1,4 +1,5 @@
 import { join } from 'path';
+import { existsSync } from 'fs';
 import clientHtml from '@client/index.html';
 import { loadConfig } from './config';
 import { initRecorder } from './recorder';
@@ -6,9 +7,19 @@ import { configApi } from './api/config';
 import { recordingsApi } from './api/recordings';
 import { recordingsIdApi } from './api/recordings-id';
 
+const certPath = join(import.meta.dir, '..', '..', 'certs', 'cert.pem');
+const keyPath = join(import.meta.dir, '..', '..', 'certs', 'key.pem');
+const useTls = existsSync(certPath) && existsSync(keyPath);
+
 const server = Bun.serve({
   port: 3000,
   development: process.env.NODE_ENV !== 'production',
+  ...(useTls && {
+    tls: {
+      cert: Bun.file(certPath),
+      key: Bun.file(keyPath),
+    },
+  }),
   routes: {
     '/': clientHtml,
     '/analytics': clientHtml,
@@ -43,11 +54,12 @@ const server = Bun.serve({
 await loadConfig();
 await initRecorder();
 
+const protocol = useTls ? 'https' : 'http';
 console.log(`
   --------------------------------
          📢 Decibel Reader 
   --------------------------------
-  server: http://localhost:${server.port}
+  server: ${protocol}://localhost:${server.port}
   environment: ${process.env.NODE_ENV ?? 'development'}
   --------------------------------
 `);

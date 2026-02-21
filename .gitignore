@@ -1,6 +1,7 @@
 node_modules
 dist
 recordings
+certs
 config.json
 .env
 *.log
