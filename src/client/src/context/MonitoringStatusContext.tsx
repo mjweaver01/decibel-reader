@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
   type ReactNode,
 } from 'react';
@@ -42,27 +43,30 @@ const defaultStatus: MonitoringStatus = {
   error: null,
 };
 
-interface MonitoringContextValue {
-  status: MonitoringStatus;
-  setStatus: (s: MonitoringStatus) => void;
-  micEnabled: boolean;
-  setMicEnabled: (v: boolean) => void;
-  // Audio capture (persists across page navigation)
+/** High-frequency: dB, stream, etc. Updates ~60fps when monitoring. */
+interface CaptureContextValue {
   dB: number;
   isRecording: boolean;
   error: string | null;
   stream: MediaStream | null;
   lastDetection: string | null;
   devices: MediaDeviceInfo[];
+}
+
+/** Low-frequency: config, recordingsVersion, etc. */
+interface ConfigContextValue {
+  status: MonitoringStatus;
+  setStatus: (s: MonitoringStatus) => void;
+  micEnabled: boolean;
+  setMicEnabled: (v: boolean) => void;
   config: AppConfig;
   setConfig: (c: AppConfig) => void;
   handleSaveConfig: (updates: Partial<AppConfig>) => Promise<void>;
   recordingsVersion: number;
 }
 
-const MonitoringStatusContext = createContext<MonitoringContextValue | null>(
-  null
-);
+const CaptureContext = createContext<CaptureContextValue | null>(null);
+const ConfigContext = createContext<ConfigContextValue | null>(null);
 
 export function MonitoringStatusProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<MonitoringStatus>(defaultStatus);
@@ -123,35 +127,58 @@ export function MonitoringStatusProvider({ children }: { children: ReactNode }) 
     [micEnabled, restartMonitoring]
   );
 
-  const value: MonitoringContextValue = {
-    status,
-    setStatus,
-    micEnabled,
-    setMicEnabled,
-    dB,
-    isRecording,
-    error,
-    stream,
-    lastDetection,
-    devices,
-    config,
-    setConfig,
-    handleSaveConfig,
-    recordingsVersion,
-  };
+  const captureValue: CaptureContextValue = useMemo(
+    () => ({ dB, isRecording, error, stream, lastDetection, devices }),
+    [dB, isRecording, error, stream, lastDetection, devices]
+  );
+
+  const configValue: ConfigContextValue = useMemo(
+    () => ({
+      status,
+      setStatus,
+      micEnabled,
+      setMicEnabled,
+      config,
+      setConfig,
+      handleSaveConfig,
+      recordingsVersion,
+    }),
+    [
+      status,
+      micEnabled,
+      config,
+      recordingsVersion,
+      setStatus,
+      setMicEnabled,
+      handleSaveConfig,
+    ]
+  );
 
   return (
-    <MonitoringStatusContext.Provider value={value}>
-      {children}
-    </MonitoringStatusContext.Provider>
+    <CaptureContext.Provider value={captureValue}>
+      <ConfigContext.Provider value={configValue}>
+        {children}
+      </ConfigContext.Provider>
+    </CaptureContext.Provider>
   );
 }
 
 export function useMonitoringStatus() {
-  const ctx = useContext(MonitoringStatusContext);
-  if (!ctx) {
+  const capture = useContext(CaptureContext);
+  const config = useContext(ConfigContext);
+  if (!capture || !config) {
     throw new Error(
       'useMonitoringStatus must be used within MonitoringStatusProvider'
+    );
+  }
+  return { ...capture, ...config };
+}
+
+export function useConfig() {
+  const ctx = useContext(ConfigContext);
+  if (!ctx) {
+    throw new Error(
+      'useConfig must be used within MonitoringStatusProvider'
     );
   }
   return ctx;

@@ -13,7 +13,7 @@ import {
   Cell,
 } from 'recharts';
 import type { RecordingMetadata } from '../../../shared/types';
-import { useMonitoringStatus } from '../context/MonitoringStatusContext';
+import { useConfig } from '../context/MonitoringStatusContext';
 import { API_BASE } from '../constants';
 
 type TimeGrouping = 'minute' | 'hour' | 'day' | 'week';
@@ -84,7 +84,7 @@ interface ChartDataPoint {
 }
 
 export function AnalyticsPage() {
-  const { recordingsVersion } = useMonitoringStatus();
+  const { recordingsVersion } = useConfig();
   const [recordings, setRecordings] = useState<RecordingMetadata[]>([]);
   const [loading, setLoading] = useState(true);
   const [grouping, setGrouping] = useState<TimeGrouping>('day');
