@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Bar,
   BarChart,
@@ -9,41 +9,49 @@ import {
   XAxis,
   YAxis,
   Cell,
-} from "recharts";
-import type { RecordingMetadata } from "../../../shared/types";
+} from 'recharts';
+import type { RecordingMetadata } from '../../../shared/types';
 
-const API_BASE = "/api";
+const API_BASE = '/api';
 
-type TimeGrouping = "hour" | "day" | "week";
+type TimeGrouping = 'hour' | 'day' | 'week';
 
 const COLORS = [
-  "#10b981", // emerald-500
-  "#34d399", // emerald-400
-  "#6ee7b7", // emerald-300
-  "#a7f3d0", // emerald-200
-  "#5eead4", // teal-300
-  "#2dd4bf", // teal-400
-  "#14b8a6", // teal-500
+  '#10b981', // emerald-500
+  '#34d399', // emerald-400
+  '#6ee7b7', // emerald-300
+  '#a7f3d0', // emerald-200
+  '#5eead4', // teal-300
+  '#2dd4bf', // teal-400
+  '#14b8a6', // teal-500
 ];
 
 function formatBucketLabel(key: string, grouping: TimeGrouping): string {
   const d = new Date(key);
-  if (grouping === "hour") {
-    return d.toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "numeric" });
+  if (grouping === 'hour') {
+    return d.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+    });
   }
-  if (grouping === "day") {
-    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  if (grouping === 'day') {
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   }
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "2-digit" });
+  return d.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: '2-digit',
+  });
 }
 
 function getBucketKey(timestamp: string, grouping: TimeGrouping): string {
   const d = new Date(timestamp);
-  if (grouping === "hour") {
+  if (grouping === 'hour') {
     d.setMinutes(0, 0, 0);
     return d.toISOString();
   }
-  if (grouping === "day") {
+  if (grouping === 'day') {
     d.setHours(0, 0, 0, 0);
     return d.toISOString();
   }
@@ -64,9 +72,10 @@ interface ChartDataPoint {
 export function AnalyticsView() {
   const [recordings, setRecordings] = useState<RecordingMetadata[]>([]);
   const [loading, setLoading] = useState(true);
-  const [grouping, setGrouping] = useState<TimeGrouping>("day");
-  const [dateRange, setDateRange] = useState<"7" | "30" | "90" | "all">("30");
-  const [classificationFilter, setClassificationFilter] = useState<string>("all");
+  const [grouping, setGrouping] = useState<TimeGrouping>('day');
+  const [dateRange, setDateRange] = useState<'7' | '30' | '90' | 'all'>('30');
+  const [classificationFilter, setClassificationFilter] =
+    useState<string>('all');
   const [stacked, setStacked] = useState(true);
 
   const fetchRecordings = useCallback(async () => {
@@ -87,25 +96,34 @@ export function AnalyticsView() {
     let list = recordings;
 
     const now = Date.now();
-    const ms = { "7": 7 * 24 * 60 * 60 * 1000, "30": 30 * 24 * 60 * 60 * 1000, "90": 90 * 24 * 60 * 60 * 1000 };
-    if (dateRange !== "all") {
+    const ms = {
+      '7': 7 * 24 * 60 * 60 * 1000,
+      '30': 30 * 24 * 60 * 60 * 1000,
+      '90': 90 * 24 * 60 * 60 * 1000,
+    };
+    if (dateRange !== 'all') {
       const cutoff = now - ms[dateRange];
-      list = list.filter((r) => new Date(r.timestamp).getTime() >= cutoff);
+      list = list.filter(r => new Date(r.timestamp).getTime() >= cutoff);
     }
 
-    if (classificationFilter !== "all") {
-      list = list.filter((r) => (r.classification ?? "(none)") === classificationFilter);
+    if (classificationFilter !== 'all') {
+      list = list.filter(
+        r => (r.classification ?? '(none)') === classificationFilter
+      );
     }
 
     return list;
   }, [recordings, dateRange, classificationFilter]);
 
   const chartData = useMemo(() => {
-    const buckets = new Map<string, { count: number; classifications: Record<string, number> }>();
+    const buckets = new Map<
+      string,
+      { count: number; classifications: Record<string, number> }
+    >();
 
     for (const r of filteredRecordings) {
       const key = getBucketKey(r.timestamp, grouping);
-      const cls = r.classification ?? "(none)";
+      const cls = r.classification ?? '(none)';
       if (!buckets.has(key)) {
         buckets.set(key, { count: 0, classifications: {} });
       }
@@ -118,7 +136,9 @@ export function AnalyticsView() {
     for (const [, data] of buckets) {
       for (const k of Object.keys(data.classifications)) allClasses.add(k);
     }
-    const sorted = Array.from(buckets.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+    const sorted = Array.from(buckets.entries()).sort((a, b) =>
+      a[0].localeCompare(b[0])
+    );
     return sorted.map(([bucket, data]) => {
       const flat: Record<string, number> = {};
       for (const c of allClasses) {
@@ -137,7 +157,7 @@ export function AnalyticsView() {
   const classifications = useMemo(() => {
     const set = new Set<string>();
     for (const r of recordings) {
-      set.add(r.classification ?? "(none)");
+      set.add(r.classification ?? '(none)');
     }
     return Array.from(set).sort();
   }, [recordings]);
@@ -146,7 +166,12 @@ export function AnalyticsView() {
     const set = new Set<string>();
     for (const d of chartData) {
       for (const k of Object.keys(d)) {
-        if (k !== "bucket" && k !== "label" && k !== "count" && k !== "classifications") {
+        if (
+          k !== 'bucket' &&
+          k !== 'label' &&
+          k !== 'count' &&
+          k !== 'classifications'
+        ) {
           set.add(k);
         }
       }
@@ -158,11 +183,11 @@ export function AnalyticsView() {
     const total = filteredRecordings.length;
     const byClass: Record<string, number> = {};
     for (const r of filteredRecordings) {
-      const c = r.classification ?? "(none)";
+      const c = r.classification ?? '(none)';
       byClass[c] = (byClass[c] ?? 0) + 1;
     }
-    const days = dateRange === "all" ? 0 : parseInt(dateRange, 10);
-    const avgPerDay = days > 0 && total > 0 ? (total / days).toFixed(1) : "-";
+    const days = dateRange === 'all' ? 0 : parseInt(dateRange, 10);
+    const avgPerDay = days > 0 && total > 0 ? (total / days).toFixed(1) : '-';
     return { total, byClass, avgPerDay };
   }, [filteredRecordings, dateRange]);
 
@@ -191,10 +216,12 @@ export function AnalyticsView() {
       {/* Filters */}
       <div className="mb-6 flex flex-wrap gap-4">
         <div>
-          <label className="mb-1 block text-xs text-zinc-500">Time grouping</label>
+          <label className="mb-1 block text-xs text-zinc-500">
+            Time grouping
+          </label>
           <select
             value={grouping}
-            onChange={(e) => setGrouping(e.target.value as TimeGrouping)}
+            onChange={e => setGrouping(e.target.value as TimeGrouping)}
             className="rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           >
             <option value="hour">By hour</option>
@@ -206,7 +233,9 @@ export function AnalyticsView() {
           <label className="mb-1 block text-xs text-zinc-500">Date range</label>
           <select
             value={dateRange}
-            onChange={(e) => setDateRange(e.target.value as "7" | "30" | "90" | "all")}
+            onChange={e =>
+              setDateRange(e.target.value as '7' | '30' | '90' | 'all')
+            }
             className="rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           >
             <option value="7">Last 7 days</option>
@@ -216,30 +245,34 @@ export function AnalyticsView() {
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-xs text-zinc-500">Classification</label>
+          <label className="mb-1 block text-xs text-zinc-500">
+            Classification
+          </label>
           <select
             value={classificationFilter}
-            onChange={(e) => setClassificationFilter(e.target.value)}
+            onChange={e => setClassificationFilter(e.target.value)}
             className="rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           >
             <option value="all">All</option>
-            {classifications.map((c) => (
+            {classifications.map(c => (
               <option key={c} value={c}>
                 {c}
               </option>
             ))}
           </select>
         </div>
-        {classificationFilter === "all" && (
+        {classificationFilter === 'all' && (
           <div className="flex items-end">
             <label className="flex cursor-pointer items-center gap-2">
               <input
                 type="checkbox"
                 checked={stacked}
-                onChange={(e) => setStacked(e.target.checked)}
+                onChange={e => setStacked(e.target.checked)}
                 className="rounded border-zinc-600 bg-zinc-800 text-emerald-600 focus:ring-emerald-500"
               />
-              <span className="text-sm text-zinc-400">Stack by classification</span>
+              <span className="text-sm text-zinc-400">
+                Stack by classification
+              </span>
             </label>
           </div>
         )}
@@ -249,20 +282,32 @@ export function AnalyticsView() {
       <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div className="rounded-md border border-zinc-700 bg-zinc-800/50 px-4 py-3">
           <p className="text-xs text-zinc-500">Total recordings</p>
-          <p className="text-xl font-semibold text-emerald-400">{summary.total}</p>
+          <p className="text-xl font-semibold text-emerald-400">
+            {summary.total}
+          </p>
         </div>
         <div className="rounded-md border border-zinc-700 bg-zinc-800/50 px-4 py-3">
           <p className="text-xs text-zinc-500">Avg per day</p>
-          <p className="text-xl font-semibold text-zinc-200">{summary.avgPerDay}</p>
+          <p className="text-xl font-semibold text-zinc-200">
+            {summary.avgPerDay}
+          </p>
         </div>
-        {Object.entries(summary.byClass).slice(0, 2).map(([cls, count], i) => (
-          <div key={cls} className="rounded-md border border-zinc-700 bg-zinc-800/50 px-4 py-3">
-            <p className="text-xs text-zinc-500">{cls}</p>
-            <p className="text-xl font-semibold" style={{ color: COLORS[i % COLORS.length] }}>
-              {count}
-            </p>
-          </div>
-        ))}
+        {Object.entries(summary.byClass)
+          .slice(0, 2)
+          .map(([cls, count], i) => (
+            <div
+              key={cls}
+              className="rounded-md border border-zinc-700 bg-zinc-800/50 px-4 py-3"
+            >
+              <p className="text-xs text-zinc-500">{cls}</p>
+              <p
+                className="text-xl font-semibold"
+                style={{ color: COLORS[i % COLORS.length] }}
+              >
+                {count}
+              </p>
+            </div>
+          ))}
       </div>
 
       {/* Chart */}
@@ -273,22 +318,29 @@ export function AnalyticsView() {
       ) : (
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <BarChart
+              data={chartData}
+              margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" />
               <XAxis
                 dataKey="label"
                 stroke="#71717a"
-                tick={{ fill: "#a1a1aa", fontSize: 11 }}
-                tickFormatter={(v) => (v.length > 12 ? v.slice(0, 10) + "…" : v)}
+                tick={{ fill: '#a1a1aa', fontSize: 11 }}
+                tickFormatter={v => (v.length > 12 ? v.slice(0, 10) + '…' : v)}
               />
-              <YAxis stroke="#71717a" tick={{ fill: "#a1a1aa", fontSize: 11 }} allowDecimals={false} />
+              <YAxis
+                stroke="#71717a"
+                tick={{ fill: '#a1a1aa', fontSize: 11 }}
+                allowDecimals={false}
+              />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#27272a",
-                  border: "1px solid #3f3f46",
-                  borderRadius: "6px",
+                  backgroundColor: '#27272a',
+                  border: '1px solid #3f3f46',
+                  borderRadius: '6px',
                 }}
-                labelStyle={{ color: "#a1a1aa" }}
+                labelStyle={{ color: '#a1a1aa' }}
                 content={({ active, payload }) => {
                   if (!active || !payload?.[0]) return null;
                   const d = payload[0].payload as ChartDataPoint;
@@ -307,7 +359,9 @@ export function AnalyticsView() {
                   );
                 }}
               />
-              {stacked && classificationFilter === "all" && chartClassifications.length > 0 ? (
+              {stacked &&
+              classificationFilter === 'all' &&
+              chartClassifications.length > 0 ? (
                 <>
                   {chartClassifications.map((cls, i) => (
                     <Bar
@@ -315,13 +369,17 @@ export function AnalyticsView() {
                       dataKey={cls}
                       stackId="a"
                       fill={COLORS[i % COLORS.length]}
-                      radius={i === chartClassifications.length - 1 ? [4, 4, 0, 0] : 0}
+                      radius={
+                        i === chartClassifications.length - 1 ? [4, 4, 0, 0] : 0
+                      }
                       name={cls}
                     />
                   ))}
                   <Legend
-                    wrapperStyle={{ fontSize: "12px" }}
-                    formatter={(value) => <span className="text-zinc-400">{value}</span>}
+                    wrapperStyle={{ fontSize: '12px' }}
+                    formatter={value => (
+                      <span className="text-zinc-400">{value}</span>
+                    )}
                   />
                 </>
               ) : (

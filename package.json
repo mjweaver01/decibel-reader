@@ -6,20 +6,23 @@
     "dev": "bun run src/server/index.ts",
     "build": "bun build --target=bun --production --outdir=dist ./src/server/index.ts",
     "start": "bun run dist/index.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write ."
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
     "bun-plugin-tailwind": "^0.1.2",
+    "prettier": "^3.6.2",
     "tailwindcss": "^4",
     "typescript": "^5.3.0"
   },
   "dependencies": {
     "@mediapipe/tasks-audio": "^0.10.32",
     "@mediapipe/tasks-vision": "^0.10.32",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react": "^19",
+    "react-dom": "^19",
+    "recharts": "^3.7.0"
   }
 }

@@ -7,7 +7,10 @@ const MIN_DB = -60;
 const MAX_DB = 0;
 
 export function LiveMeter({ dB, threshold }: LiveMeterProps) {
-  const percent = Math.max(0, Math.min(100, ((dB - MIN_DB) / (MAX_DB - MIN_DB)) * 100));
+  const percent = Math.max(
+    0,
+    Math.min(100, ((dB - MIN_DB) / (MAX_DB - MIN_DB)) * 100)
+  );
   const thresholdPercent = Math.max(
     0,
     Math.min(100, ((threshold - MIN_DB) / (MAX_DB - MIN_DB)) * 100)
@@ -17,7 +20,9 @@ export function LiveMeter({ dB, threshold }: LiveMeterProps) {
     <div className="rounded-lg bg-zinc-900 p-6">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-sm font-medium text-zinc-400">Live Level</span>
-        <span className="text-2xl font-mono font-bold text-emerald-400">{dB.toFixed(1)} dB</span>
+        <span className="text-2xl font-mono font-bold text-emerald-400">
+          {dB.toFixed(1)} dB
+        </span>
       </div>
       <div className="relative h-2 overflow-hidden rounded-full bg-zinc-800">
         <div

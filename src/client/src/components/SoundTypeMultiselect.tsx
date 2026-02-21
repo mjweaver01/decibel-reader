@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from 'react';
 
 interface SoundTypeMultiselectProps {
   options: string[];
@@ -13,35 +13,42 @@ export function SoundTypeMultiselect({
   selected,
   onToggle,
   onRemove,
-  placeholder = "Search...",
+  placeholder = 'Search...',
 }: SoundTypeMultiselectProps) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const filtered = query.trim()
-    ? options.filter((o) => o.toLowerCase().includes(query.toLowerCase()))
+    ? options.filter(o => o.toLowerCase().includes(query.toLowerCase()))
     : options;
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Node;
-      if (containerRef.current && target && !containerRef.current.contains(target)) {
+      if (
+        containerRef.current &&
+        target &&
+        !containerRef.current.contains(target)
+      ) {
         setOpen(false);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside, true);
-    return () => document.removeEventListener("mousedown", handleClickOutside, true);
+    document.addEventListener('mousedown', handleClickOutside, true);
+    return () =>
+      document.removeEventListener('mousedown', handleClickOutside, true);
   }, []);
 
   return (
     <div ref={containerRef} className="relative">
-      <label className="mb-2 block text-sm text-zinc-400">Sound types to record</label>
+      <label className="mb-2 block text-sm text-zinc-400">
+        Sound types to record
+      </label>
       <p className="mb-2 text-xs text-zinc-500">
         Leave empty to record any loud sound. Search and select specific types.
       </p>
       <div className="flex flex-wrap gap-2 mb-2">
-        {selected.map((name) => (
+        {selected.map(name => (
           <span
             key={name}
             className="inline-flex items-center gap-1 rounded-full bg-emerald-600/90 px-3 py-1 text-sm text-white ring-1 ring-emerald-500"
@@ -53,8 +60,18 @@ export function SoundTypeMultiselect({
               className="ml-0.5 rounded-full p-0.5 hover:bg-emerald-500/50"
               aria-label={`Remove ${name}`}
             >
-              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg
+                className="h-3.5 w-3.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </span>
@@ -64,7 +81,7 @@ export function SoundTypeMultiselect({
         <input
           type="text"
           value={query}
-          onChange={(e) => {
+          onChange={e => {
             setQuery(e.target.value);
             setOpen(true);
           }}
@@ -81,7 +98,7 @@ export function SoundTypeMultiselect({
             {filtered.length === 0 ? (
               <li className="px-3 py-2 text-sm text-zinc-500">No matches</li>
             ) : (
-              filtered.map((name) => {
+              filtered.map(name => {
                 const isSelected = selected.includes(name);
                 return (
                   <li
@@ -90,12 +107,12 @@ export function SoundTypeMultiselect({
                     aria-selected={isSelected}
                     onClick={() => {
                       onToggle(name);
-                      setQuery("");
+                      setQuery('');
                     }}
                     className={`cursor-pointer px-3 py-2 text-sm ${
                       isSelected
-                        ? "bg-emerald-600/30 text-emerald-300"
-                        : "text-zinc-300 hover:bg-zinc-700"
+                        ? 'bg-emerald-600/30 text-emerald-300'
+                        : 'text-zinc-300 hover:bg-zinc-700'
                     }`}
                   >
                     {name}

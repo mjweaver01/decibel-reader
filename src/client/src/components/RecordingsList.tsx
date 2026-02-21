@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
-import type { RecordingMetadata } from "../../../shared/types";
+import { useEffect, useRef, useState } from 'react';
+import type { RecordingMetadata } from '../../../shared/types';
 
-const API_BASE = "/api";
+const API_BASE = '/api';
 
 interface RecordingsListProps {
   refreshTrigger?: number;
@@ -15,7 +15,7 @@ export function RecordingsList({ refreshTrigger = 0 }: RecordingsListProps) {
 
   const fetchRecordings = async () => {
     fetch(`${API_BASE}/recordings`)
-      .then((r) => r.json())
+      .then(r => r.json())
       .then(setRecordings)
       .finally(() => setLoading(false));
   };
@@ -72,23 +72,28 @@ export function RecordingsList({ refreshTrigger = 0 }: RecordingsListProps) {
       <h2 className="mb-4 text-lg font-semibold text-zinc-100">Recordings</h2>
       {recordings.length === 0 ? (
         <p className="text-zinc-500">
-          No recordings yet. When a detected sound exceeds the threshold, recordings will appear here.
+          No recordings yet. When a detected sound exceeds the threshold,
+          recordings will appear here.
         </p>
       ) : (
         <div className="space-y-2">
-          {recordings.map((r) => (
+          {recordings.map(r => (
             <div
               key={r.id}
               className="flex items-center justify-between rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2"
             >
               <div className="min-w-0">
-                <p className="truncate text-sm text-zinc-100">{formatDate(r.timestamp)}</p>
+                <p className="truncate text-sm text-zinc-100">
+                  {formatDate(r.timestamp)}
+                </p>
                 <p className="text-xs text-zinc-500">
                   Peak: {r.peakDb.toFixed(1)} dB · {r.durationSeconds}s
                   {r.classification && (
                     <>
-                      {" · "}
-                      <span className="text-emerald-400/90">{r.classification}</span>
+                      {' · '}
+                      <span className="text-emerald-400/90">
+                        {r.classification}
+                      </span>
                     </>
                   )}
                 </p>
@@ -99,11 +104,11 @@ export function RecordingsList({ refreshTrigger = 0 }: RecordingsListProps) {
                   onClick={() => handlePlay(r)}
                   className={`rounded px-2 py-1 text-sm ${
                     playingId === r.id
-                      ? "bg-emerald-600 text-white"
-                      : "text-emerald-400 hover:bg-emerald-500/20"
+                      ? 'bg-emerald-600 text-white'
+                      : 'text-emerald-400 hover:bg-emerald-500/20'
                   }`}
                 >
-                  {playingId === r.id ? "Stop" : "Play"}
+                  {playingId === r.id ? 'Stop' : 'Play'}
                 </button>
                 <a
                   href={recordingUrl(r)}

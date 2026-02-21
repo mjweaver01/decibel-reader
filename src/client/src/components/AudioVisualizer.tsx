@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef } from 'react';
 
 interface AudioVisualizerProps {
   stream: MediaStream | null;
@@ -7,7 +7,12 @@ interface AudioVisualizerProps {
   threshold?: number;
 }
 
-export function AudioVisualizer({ stream, isRecording, dB = 0, threshold = -20 }: AudioVisualizerProps) {
+export function AudioVisualizer({
+  stream,
+  isRecording,
+  dB = 0,
+  threshold = -20,
+}: AudioVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
@@ -16,7 +21,7 @@ export function AudioVisualizer({ stream, isRecording, dB = 0, threshold = -20 }
     if (!stream || !canvasRef.current) return;
 
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     const audioCtx = new AudioContext();
@@ -49,7 +54,7 @@ export function AudioVisualizer({ stream, isRecording, dB = 0, threshold = -20 }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     resize();
-    window.addEventListener("resize", resize);
+    window.addEventListener('resize', resize);
 
     const draw = () => {
       if (width === 0 || height === 0) {
@@ -62,7 +67,7 @@ export function AudioVisualizer({ stream, isRecording, dB = 0, threshold = -20 }
       ctx.clearRect(0, 0, width, height);
 
       // Subtle grid
-      ctx.strokeStyle = "rgba(255,255,255,0.03)";
+      ctx.strokeStyle = 'rgba(255,255,255,0.03)';
       ctx.lineWidth = 1;
       for (let i = 1; i < 4; i++) {
         ctx.beginPath();
@@ -85,7 +90,7 @@ export function AudioVisualizer({ stream, isRecording, dB = 0, threshold = -20 }
       // Threshold indicator line (dB -60 to 0 maps to bottom to top)
       const thresholdNorm = Math.max(0, Math.min(1, (threshold + 60) / 60));
       const thresholdY = waveY - waveHeight + thresholdNorm * waveHeight * 2;
-      ctx.strokeStyle = "rgba(251,191,36,0.4)";
+      ctx.strokeStyle = 'rgba(251,191,36,0.4)';
       ctx.lineWidth = 1;
       ctx.setLineDash([4, 4]);
       ctx.beginPath();
@@ -97,16 +102,18 @@ export function AudioVisualizer({ stream, isRecording, dB = 0, threshold = -20 }
       // Waveform - oscilloscope style
       ctx.beginPath();
       ctx.lineWidth = 2;
-      ctx.lineJoin = "round";
-      ctx.lineCap = "round";
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
 
       const gradient = ctx.createLinearGradient(0, 0, width, 0);
-      gradient.addColorStop(0, isRecording ? "#ef4444" : "#10b981");
-      gradient.addColorStop(0.5, isRecording ? "#f97316" : "#14b8a6");
-      gradient.addColorStop(1, isRecording ? "#ef4444" : "#10b981");
+      gradient.addColorStop(0, isRecording ? '#ef4444' : '#10b981');
+      gradient.addColorStop(0.5, isRecording ? '#f97316' : '#14b8a6');
+      gradient.addColorStop(1, isRecording ? '#ef4444' : '#10b981');
       ctx.strokeStyle = gradient;
 
-      ctx.shadowColor = isRecording ? "rgba(239,68,68,0.6)" : "rgba(16,185,129,0.5)";
+      ctx.shadowColor = isRecording
+        ? 'rgba(239,68,68,0.6)'
+        : 'rgba(16,185,129,0.5)';
       ctx.shadowBlur = 12;
 
       for (let i = 0; i < waveformData.length; i++) {
@@ -148,9 +155,12 @@ export function AudioVisualizer({ stream, isRecording, dB = 0, threshold = -20 }
         const y = barAreaTop + barAreaHeight - barHeight;
 
         const barGrad = ctx.createLinearGradient(x, y + barHeight, x, y);
-        barGrad.addColorStop(0, "rgba(16,185,129,0.2)");
-        barGrad.addColorStop(0.5, "rgba(20,184,166,0.6)");
-        barGrad.addColorStop(1, isRecording ? "rgba(239,68,68,0.9)" : "rgba(16,185,129,0.9)");
+        barGrad.addColorStop(0, 'rgba(16,185,129,0.2)');
+        barGrad.addColorStop(0.5, 'rgba(20,184,166,0.6)');
+        barGrad.addColorStop(
+          1,
+          isRecording ? 'rgba(239,68,68,0.9)' : 'rgba(16,185,129,0.9)'
+        );
         ctx.fillStyle = barGrad;
         ctx.fillRect(x, y, barWidth, barHeight);
       }
@@ -161,7 +171,7 @@ export function AudioVisualizer({ stream, isRecording, dB = 0, threshold = -20 }
     draw();
 
     return () => {
-      window.removeEventListener("resize", resize);
+      window.removeEventListener('resize', resize);
       cancelAnimationFrame(animationId);
       audioCtx.close();
       analyserRef.current = null;
@@ -183,9 +193,11 @@ export function AudioVisualizer({ stream, isRecording, dB = 0, threshold = -20 }
         </div>
         <span
           className={`h-1.5 w-1.5 shrink-0 rounded-full transition-opacity ${
-            isRecording ? "bg-red-500 opacity-100 animate-pulse" : "bg-transparent opacity-0"
+            isRecording
+              ? 'bg-red-500 opacity-100 animate-pulse'
+              : 'bg-transparent opacity-0'
           }`}
-          title={isRecording ? "Recording" : undefined}
+          title={isRecording ? 'Recording' : undefined}
           aria-hidden={!isRecording}
         />
       </div>
@@ -195,7 +207,7 @@ export function AudioVisualizer({ stream, isRecording, dB = 0, threshold = -20 }
         <canvas
           ref={canvasRef}
           className="block h-44 w-full"
-          style={{ minHeight: "176px" }}
+          style={{ minHeight: '176px' }}
         />
       </div>
     </div>

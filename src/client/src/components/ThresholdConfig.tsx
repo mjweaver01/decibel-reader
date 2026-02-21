@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
-import type { AppConfig } from "../../../shared/types";
-import { getYamnetLabels } from "../lib/yamnetLabels";
-import type { MediaDeviceInfo } from "../hooks/useAudioCapture";
-import { SoundTypeMultiselect } from "./SoundTypeMultiselect";
+import { useEffect, useState } from 'react';
+import type { AppConfig } from '../../../shared/types';
+import { getYamnetLabels } from '../lib/yamnetLabels';
+import type { MediaDeviceInfo } from '../hooks/useAudioCapture';
+import { SoundTypeMultiselect } from './SoundTypeMultiselect';
 
 interface ThresholdConfigProps {
   config: AppConfig;
@@ -10,15 +10,25 @@ interface ThresholdConfigProps {
   devices: MediaDeviceInfo[];
 }
 
-export function ThresholdConfig({ config, onSave, devices }: ThresholdConfigProps) {
+export function ThresholdConfig({
+  config,
+  onSave,
+  devices,
+}: ThresholdConfigProps) {
   const [thresholdDb, setThresholdDb] = useState(config.thresholdDb);
-  const [thresholdInput, setThresholdInput] = useState(String(Math.max(-60, Math.min(0, config.thresholdDb))));
-  const [recordDurationSeconds, setRecordDurationSeconds] = useState(config.recordDurationSeconds);
-  const [soundTypes, setSoundTypes] = useState<string[]>(config.soundTypes ?? []);
+  const [thresholdInput, setThresholdInput] = useState(
+    String(Math.max(-60, Math.min(0, config.thresholdDb)))
+  );
+  const [recordDurationSeconds, setRecordDurationSeconds] = useState(
+    config.recordDurationSeconds
+  );
+  const [soundTypes, setSoundTypes] = useState<string[]>(
+    config.soundTypes ?? []
+  );
   const [classificationMinScore, setClassificationMinScore] = useState(
     config.classificationMinScore ?? 0.5
   );
-  const [deviceId, setDeviceId] = useState(config.deviceId ?? "");
+  const [deviceId, setDeviceId] = useState(config.deviceId ?? '');
   const [saving, setSaving] = useState(false);
   const [soundTypeOptions, setSoundTypeOptions] = useState<string[]>([]);
 
@@ -33,7 +43,7 @@ export function ThresholdConfig({ config, onSave, devices }: ThresholdConfigProp
     setRecordDurationSeconds(config.recordDurationSeconds);
     setSoundTypes(config.soundTypes ?? []);
     setClassificationMinScore(config.classificationMinScore ?? 0.5);
-    setDeviceId(config.deviceId ?? "");
+    setDeviceId(config.deviceId ?? '');
   }, [config]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -62,32 +72,37 @@ export function ThresholdConfig({ config, onSave, devices }: ThresholdConfigProp
   };
 
   const toggleSoundType = (name: string) => {
-    setSoundTypes((prev) =>
-      prev.includes(name) ? prev.filter((s) => s !== name) : [...prev, name]
+    setSoundTypes(prev =>
+      prev.includes(name) ? prev.filter(s => s !== name) : [...prev, name]
     );
   };
 
   const removeSoundType = (name: string) => {
-    setSoundTypes((prev) => prev.filter((s) => s !== name));
+    setSoundTypes(prev => prev.filter(s => s !== name));
   };
 
   return (
     <form onSubmit={handleSubmit} className="rounded-lg bg-zinc-900 p-6">
-      <h2 className="mb-4 text-lg font-semibold text-zinc-100">Configuration</h2>
+      <h2 className="mb-4 text-lg font-semibold text-zinc-100">
+        Configuration
+      </h2>
       <div className="space-y-4">
         {devices.length > 0 && (
           <div>
-            <label htmlFor="microphone" className="mb-1 block text-sm text-zinc-400">
+            <label
+              htmlFor="microphone"
+              className="mb-1 block text-sm text-zinc-400"
+            >
               Microphone
             </label>
             <select
               id="microphone"
               value={deviceId}
-              onChange={(e) => handleDeviceChange(e.target.value)}
+              onChange={e => handleDeviceChange(e.target.value)}
               className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             >
               <option value="">Default</option>
-              {devices.map((d) => (
+              {devices.map(d => (
                 <option key={d.deviceId} value={d.deviceId}>
                   {d.label}
                 </option>
@@ -99,7 +114,10 @@ export function ThresholdConfig({ config, onSave, devices }: ThresholdConfigProp
           </div>
         )}
         <div>
-          <label htmlFor="threshold" className="mb-1 block text-sm text-zinc-400">
+          <label
+            htmlFor="threshold"
+            className="mb-1 block text-sm text-zinc-400"
+          >
             Threshold (dB)
           </label>
           <input
@@ -109,11 +127,12 @@ export function ThresholdConfig({ config, onSave, devices }: ThresholdConfigProp
             max={0}
             step={1}
             value={thresholdInput}
-            onChange={(e) => {
+            onChange={e => {
               const v = e.target.value;
               setThresholdInput(v);
-              const n = v === "" || v === "-" ? null : parseFloat(v);
-              if (n !== null && !isNaN(n)) setThresholdDb(Math.max(-60, Math.min(0, n)));
+              const n = v === '' || v === '-' ? null : parseFloat(v);
+              if (n !== null && !isNaN(n))
+                setThresholdDb(Math.max(-60, Math.min(0, n)));
             }}
             onBlur={() => {
               const n = parseFloat(thresholdInput);
@@ -136,7 +155,10 @@ export function ThresholdConfig({ config, onSave, devices }: ThresholdConfigProp
         />
         {soundTypes.length > 0 && (
           <div>
-            <label htmlFor="minScore" className="mb-1 block text-sm text-zinc-400">
+            <label
+              htmlFor="minScore"
+              className="mb-1 block text-sm text-zinc-400"
+            >
               Min confidence ({Math.round(classificationMinScore * 100)}%)
             </label>
             <input
@@ -146,19 +168,22 @@ export function ThresholdConfig({ config, onSave, devices }: ThresholdConfigProp
               max={0.99}
               step={0.01}
               value={classificationMinScore}
-              onChange={(e) => setClassificationMinScore(Number(e.target.value))}
+              onChange={e => setClassificationMinScore(Number(e.target.value))}
               className="w-full"
             />
           </div>
         )}
         <div>
-          <label htmlFor="duration" className="mb-1 block text-sm text-zinc-400">
+          <label
+            htmlFor="duration"
+            className="mb-1 block text-sm text-zinc-400"
+          >
             Record Duration (seconds)
           </label>
           <select
             id="duration"
             value={recordDurationSeconds}
-            onChange={(e) => setRecordDurationSeconds(Number(e.target.value))}
+            onChange={e => setRecordDurationSeconds(Number(e.target.value))}
             className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           >
             <option value={0.1}>0.1 seconds</option>
@@ -179,7 +204,7 @@ export function ThresholdConfig({ config, onSave, devices }: ThresholdConfigProp
           disabled={saving}
           className="rounded-md bg-emerald-600 px-4 py-2 font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
         >
-          {saving ? "Saving..." : "Save"}
+          {saving ? 'Saving...' : 'Save'}
         </button>
       </div>
     </form>
