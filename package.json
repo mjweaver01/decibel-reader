@@ -3,9 +3,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "bun run src/server/index.ts",
-    "build": "bun build --target=bun --production --public-path=/ --outdir=client ./src/server/index.ts",
-    "start": "bun run build && cd client && bun run index.js",
+    "dev": "bun run --hot --watch src/server/index.ts",
+    "start": "bun run --production src/server/index.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
