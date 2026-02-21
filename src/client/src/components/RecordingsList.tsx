@@ -9,9 +9,14 @@ const MAX_HEIGHT_DESKTOP = '60vh';
 
 interface RecordingsListProps {
   refreshTrigger?: number;
+  /** When provided, use these recordings instead of fetching (e.g. filtered list from Analytics) */
+  recordings?: RecordingMetadata[];
 }
 
-export function RecordingsList({ refreshTrigger = 0 }: RecordingsListProps) {
+export function RecordingsList({
+  refreshTrigger = 0,
+  recordings: recordingsProp,
+}: RecordingsListProps) {
   const isMobile = useIsMobile();
 
   const [recordings, setRecordings] = useState<RecordingMetadata[]>([]);
@@ -37,13 +42,19 @@ export function RecordingsList({ refreshTrigger = 0 }: RecordingsListProps) {
   }, []);
 
   useEffect(() => {
+    if (recordingsProp !== undefined) {
+      setRecordings(recordingsProp);
+      setLoading(false);
+      return;
+    }
     fetchRecordings();
-  }, [refreshTrigger, fetchRecordings]);
+  }, [refreshTrigger, fetchRecordings, recordingsProp]);
 
   useEffect(() => {
+    if (recordingsProp !== undefined) return;
     const interval = setInterval(fetchRecordings, 5000);
     return () => clearInterval(interval);
-  }, [fetchRecordings]);
+  }, [fetchRecordings, recordingsProp]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;

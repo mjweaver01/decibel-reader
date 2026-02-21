@@ -17,6 +17,7 @@ import {
 import type { RecordingMetadata } from '@shared/types';
 import { API_BASE } from '@shared/constants';
 import { useRecordingsVersion } from '../lib/recordingsVersion';
+import { RecordingsList } from '../components/RecordingsList';
 
 type TimeGrouping = 'minute' | 'hour' | 'day' | 'week';
 
@@ -138,6 +139,15 @@ export function AnalyticsPage() {
 
     return list;
   }, [recordings, dateRange, classificationFilter]);
+
+  const sortedFilteredRecordings = useMemo(
+    () =>
+      [...filteredRecordings].sort(
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      ),
+    [filteredRecordings]
+  );
 
   const chartData = useMemo(() => {
     const buckets = new Map<
@@ -657,6 +667,14 @@ export function AnalyticsPage() {
           </ResponsiveContainer>
         </div>
       )}
+
+      {/* Filtered recordings list */}
+      <div className="mt-6">
+        <RecordingsList
+          recordings={sortedFilteredRecordings}
+          refreshTrigger={recordingsVersion}
+        />
+      </div>
     </div>
   );
 }
