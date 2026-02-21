@@ -9,7 +9,7 @@ import { useAudioCapture } from '../hooks/useAudioCapture';
 const API_BASE = '/api';
 
 export function MonitorPage() {
-  const { setStatus } = useMonitoringStatus();
+  const { setStatus, micEnabled, setMicEnabled } = useMonitoringStatus();
 
   const [config, setConfig] = useState<AppConfig>({
     thresholdDb: DEFAULT_CONFIG.thresholdDb,
@@ -20,7 +20,6 @@ export function MonitorPage() {
   });
 
   const [recordingsVersion, setRecordingsVersion] = useState(0);
-  const [micEnabled, setMicEnabled] = useState(false);
 
   const { dB, isRecording, error, stream, lastDetection, devices } =
     useAudioCapture({
