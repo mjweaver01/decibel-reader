@@ -354,11 +354,11 @@ export function useAudioCapture({
         const source = ctx.createMediaStreamSource(stream);
         const analyser = ctx.createAnalyser();
         analyser.fftSize = 2048;
-        analyser.smoothingTimeConstant = 0.8;
+        analyser.smoothingTimeConstant = 0.3;
         source.connect(analyser);
 
         // Buffer audio for classification (ScriptProcessorNode is deprecated but widely supported)
-        scriptProcessor = ctx.createScriptProcessor(4096, 1, 1);
+        scriptProcessor = ctx.createScriptProcessor(2048, 1, 1);
         scriptProcessor.onaudioprocess = e => {
           const input = e.inputBuffer.getChannelData(0);
           const buffer = bufferRef.current;

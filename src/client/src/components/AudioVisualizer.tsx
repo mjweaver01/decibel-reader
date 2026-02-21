@@ -28,7 +28,7 @@ export function AudioVisualizer({
     const source = audioCtx.createMediaStreamSource(stream);
     const analyser = audioCtx.createAnalyser();
     analyser.fftSize = 2048;
-    analyser.smoothingTimeConstant = 0.7;
+    analyser.smoothingTimeConstant = 0.3;
     analyser.minDecibels = -70;
     analyser.maxDecibels = -10;
     source.connect(analyser);

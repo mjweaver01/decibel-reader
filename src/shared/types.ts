@@ -13,7 +13,7 @@ export interface AppConfig {
 export const DEFAULT_CONFIG: AppConfig = {
   thresholdDb: -30,
   recordDurationSeconds: 0.1,
-  captureIntervalMs: 500,
+  captureIntervalMs: 100,
   soundTypes: ['Throat clearing'],
   classificationMinScore: 0.3,
 };
