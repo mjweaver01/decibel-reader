@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { SOUND_LABEL_ALIASES } from "../../../shared/types";
-import { getClassifier, classifyAudio } from "../lib/soundClassifier";
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { getClassifier, classifyAudio } from '../lib/soundClassifier';
 
 const MIN_DB = -60;
 const MAX_DB = 0;
 
-function computeDbFromAnalyser(analyser: AnalyserNode, dataArray: Uint8Array): number {
+function computeDbFromAnalyser(
+  analyser: AnalyserNode,
+  dataArray: Uint8Array
+): number {
   // @ts-expect-error - Web Audio API Uint8Array type mismatch in strict mode
   analyser.getByteTimeDomainData(dataArray);
   let sum = 0;
@@ -76,53 +78,64 @@ export function useAudioCapture({
   const uploadRecording = useCallback(
     async (blob: Blob, peakDb: number, classification?: string) => {
       const formData = new FormData();
-      formData.append("audio", blob, "recording.webm");
-      formData.append("peakDb", String(peakDb));
-      formData.append("durationSeconds", String(recordDurationMs / 1000));
-      if (classification) formData.append("classification", classification);
+      formData.append('audio', blob, 'recording.webm');
+      formData.append('peakDb', String(peakDb));
+      formData.append('durationSeconds', String(recordDurationMs / 1000));
+      if (classification) formData.append('classification', classification);
 
-      const res = await fetch("/api/recordings", {
-        method: "POST",
+      const res = await fetch('/api/recordings', {
+        method: 'POST',
         body: formData,
       });
-      if (!res.ok) throw new Error("Upload failed");
+      if (!res.ok) throw new Error('Upload failed');
       return res.json();
     },
     [recordDurationMs]
   );
 
-  const startRecordingRef = useRef<(dB: number, classification?: string) => void>(() => {});
+  const startRecordingRef = useRef<
+    (dB: number, classification?: string) => void
+  >(() => {});
   const startRecording = useCallback(
     (peakDb: number, classification?: string) => {
       const stream = streamRef.current;
       if (!stream || isRecording) {
-        console.log("[DecibelReader] startRecording skipped:", !stream ? "no stream" : "already recording");
+        console.log(
+          '[DecibelReader] startRecording skipped:',
+          !stream ? 'no stream' : 'already recording'
+        );
         return;
       }
 
-      console.log("[DecibelReader] Recording started, duration:", recordDurationMs, "ms", "classification:", classification ?? "(none)");
+      console.log(
+        '[DecibelReader] Recording started, duration:',
+        recordDurationMs,
+        'ms',
+        'classification:',
+        classification ?? '(none)'
+      );
       setIsRecording(true);
-      const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
       recorderRef.current = recorder;
       const chunks: Blob[] = [];
 
-      recorder.ondataavailable = (e) => {
+      recorder.ondataavailable = e => {
         if (e.data.size) chunks.push(e.data);
       };
 
       recorder.onstop = async () => {
         recorderRef.current = null;
         setIsRecording(false);
-        const blob = new Blob(chunks, { type: "audio/webm" });
-        console.log("[DecibelReader] Recording stopped, blob size:", blob.size);
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        console.log('[DecibelReader] Recording stopped, blob size:', blob.size);
         if (blob.size > 0) {
           try {
             await uploadRecording(blob, peakDb, classification);
-            console.log("[DecibelReader] Upload successful");
+            console.log('[DecibelReader] Upload successful');
             onRecordingUploaded?.();
           } catch (err) {
-            console.error("[DecibelReader] Upload failed:", err);
-            setError("Failed to save recording");
+            console.error('[DecibelReader] Upload failed:', err);
+            setError('Failed to save recording');
           }
         }
       };
@@ -136,11 +149,18 @@ export function useAudioCapture({
 
   const runClassificationAndMaybeRecord = useCallback(
     async (peakDb: number) => {
-      const soundTypesToCheck = soundTypes.filter((s) => s.trim());
-      console.log("[DecibelReader] runClassificationAndMaybeRecord peakDb:", peakDb.toFixed(1), "soundTypesToCheck:", soundTypesToCheck);
+      const soundTypesToCheck = soundTypes.filter(s => s.trim());
+      console.log(
+        '[DecibelReader] runClassificationAndMaybeRecord peakDb:',
+        peakDb.toFixed(1),
+        'soundTypesToCheck:',
+        soundTypesToCheck
+      );
 
       if (soundTypesToCheck.length === 0) {
-        console.log("[DecibelReader] No sound types -> recording any loud sound");
+        console.log(
+          '[DecibelReader] No sound types -> recording any loud sound'
+        );
         startRecordingRef.current(peakDb);
         return;
       }
@@ -160,7 +180,10 @@ export function useAudioCapture({
 
         const resampled = resampleTo16k(audioChunk, sr);
         if (resampled.length < 10000) {
-          console.log("[DecibelReader] Buffer too small for classification:", resampled.length);
+          console.log(
+            '[DecibelReader] Buffer too small for classification:',
+            resampled.length
+          );
           return;
         }
 
@@ -169,45 +192,64 @@ export function useAudioCapture({
           scoreThreshold: 0.05,
           maxResults: 5,
         });
-        console.log("[DecibelReader] Running classification, samples:", resampled.length);
+        console.log(
+          '[DecibelReader] Running classification, samples:',
+          resampled.length
+        );
         const results = classifyAudio(classifier, resampled, 16000);
         const categories = results[0]?.classifications?.[0]?.categories ?? [];
         const topCategory = categories[0];
 
         if (categories.length === 0) {
-          console.log("[DecibelReader] Classification: no categories (all filtered by model)");
+          console.log(
+            '[DecibelReader] Classification: no categories (all filtered by model)'
+          );
         } else {
           console.log(
-            "[DecibelReader] Classification:",
+            '[DecibelReader] Classification:',
             topCategory.categoryName || topCategory.displayName,
-            (topCategory.score * 100).toFixed(1) + "%",
-            "min:",
-            classificationMinScore * 100 + "%"
+            (topCategory.score * 100).toFixed(1) + '%',
+            'min:',
+            classificationMinScore * 100 + '%'
           );
         }
 
         if (topCategory) {
           const label = topCategory.displayName || topCategory.categoryName;
-          setLastDetection(`${label} (${(topCategory.score * 100).toFixed(0)}%)`);
+          setLastDetection(
+            `${label} (${(topCategory.score * 100).toFixed(0)}%)`
+          );
 
-          const categoryLabel = topCategory.categoryName || topCategory.displayName || "";
-          const match = soundTypesToCheck.some((selected) => {
+          const categoryLabel =
+            topCategory.categoryName || topCategory.displayName || '';
+          const matchedSelected = soundTypesToCheck.find(selected => {
             if (categoryLabel === selected) return true;
-            const aliases = SOUND_LABEL_ALIASES[selected];
-            return aliases?.includes(categoryLabel) ?? false;
           });
+          const match = !!matchedSelected;
           const scoreOk = topCategory.score >= classificationMinScore;
           const willRecord = match && scoreOk;
-          console.log("[DecibelReader] Match:", match, "| score OK:", scoreOk, "| will record:", willRecord);
+          // Save the matched type (e.g. Throat clearing) not YAMNet's top (e.g. Speech)
+          const classificationToSave = matchedSelected ?? label;
+          console.log(
+            '[DecibelReader] Match:',
+            match,
+            '| score OK:',
+            scoreOk,
+            '| will record:',
+            willRecord
+          );
           if (willRecord) {
-            console.log("[DecibelReader] -> Starting recording");
-            startRecordingRef.current(peakDb, label);
+            console.log(
+              '[DecibelReader] -> Starting recording, classification:',
+              classificationToSave
+            );
+            startRecordingRef.current(peakDb, classificationToSave);
           }
         } else {
           setLastDetection(null);
         }
       } catch (err) {
-        console.error("[DecibelReader] Classification failed:", err);
+        console.error('[DecibelReader] Classification failed:', err);
         setLastDetection(null);
       }
     },
@@ -223,13 +265,18 @@ export function useAudioCapture({
 
     const run = async () => {
       try {
-        const getStream = async (constraints: MediaStreamConstraints): Promise<MediaStream> => {
+        const getStream = async (
+          constraints: MediaStreamConstraints
+        ): Promise<MediaStream> => {
           const s = await navigator.mediaDevices.getUserMedia(constraints);
           // Refresh device list (labels become available after permission)
           const devs = await navigator.mediaDevices.enumerateDevices();
           const inputs = devs
-            .filter((d) => d.kind === "audioinput")
-            .map((d) => ({ deviceId: d.deviceId, label: d.label || `Microphone ${d.deviceId.slice(0, 8)}` }));
+            .filter(d => d.kind === 'audioinput')
+            .map(d => ({
+              deviceId: d.deviceId,
+              label: d.label || `Microphone ${d.deviceId.slice(0, 8)}`,
+            }));
           setDevices(inputs);
           return s;
         };
@@ -242,14 +289,21 @@ export function useAudioCapture({
         try {
           stream = await getStream({ audio: audioConstraints });
         } catch (firstErr) {
-          const msg = firstErr instanceof Error ? firstErr.message : String(firstErr);
-          if (msg.includes("device") || msg.includes("NotFound") || msg.includes("not found")) {
+          const msg =
+            firstErr instanceof Error ? firstErr.message : String(firstErr);
+          if (
+            msg.includes('device') ||
+            msg.includes('NotFound') ||
+            msg.includes('not found')
+          ) {
             const devs = await navigator.mediaDevices.enumerateDevices();
-            const inputs = devs.filter((d) => d.kind === "audioinput");
+            const inputs = devs.filter(d => d.kind === 'audioinput');
             let fallbackStream: MediaStream | null = null;
             for (const dev of inputs) {
               try {
-                fallbackStream = await getStream({ audio: { deviceId: { exact: dev.deviceId } } });
+                fallbackStream = await getStream({
+                  audio: { deviceId: { exact: dev.deviceId } },
+                });
                 break;
               } catch {
                 continue;
@@ -257,7 +311,7 @@ export function useAudioCapture({
             }
             if (!fallbackStream) {
               setError(
-                "No microphone found. Connect a USB microphone (on Raspberry Pi) or ensure your mic is connected and set as default."
+                'No microphone found. Connect a USB microphone (on Raspberry Pi) or ensure your mic is connected and set as default.'
               );
               return;
             }
@@ -268,14 +322,14 @@ export function useAudioCapture({
         }
 
         if (cancelled) {
-          stream.getTracks().forEach((t) => t.stop());
+          stream.getTracks().forEach(t => t.stop());
           return;
         }
         streamRef.current = stream;
         setStream(stream);
         setError(null);
 
-        console.log("[DecibelReader] Mic acquired. Config:", {
+        console.log('[DecibelReader] Mic acquired. Config:', {
           thresholdDb,
           cooldownMs,
           recordDurationMs,
@@ -293,7 +347,7 @@ export function useAudioCapture({
 
         // Buffer audio for classification (ScriptProcessorNode is deprecated but widely supported)
         scriptProcessor = ctx.createScriptProcessor(4096, 1, 1);
-        scriptProcessor.onaudioprocess = (e) => {
+        scriptProcessor.onaudioprocess = e => {
           const input = e.inputBuffer.getChannelData(0);
           const buffer = bufferRef.current;
           let idx = bufferIndexRef.current;
@@ -318,12 +372,26 @@ export function useAudioCapture({
           setDb(currentDb);
 
           if (++logThrottle % 60 === 0) {
-            console.log("[DecibelReader] dB:", currentDb.toFixed(1), "| threshold:", thresholdDb, "| above?", currentDb >= thresholdDb);
+            console.log(
+              '[DecibelReader] dB:',
+              currentDb.toFixed(1),
+              '| threshold:',
+              thresholdDb,
+              '| above?',
+              currentDb >= thresholdDb
+            );
           }
 
           const now = Date.now();
-          if (currentDb >= thresholdDb && now - lastTriggerRef.current > cooldownMs) {
-            console.log("[DecibelReader] Threshold exceeded! dB:", currentDb.toFixed(1), "-> running classification");
+          if (
+            currentDb >= thresholdDb &&
+            now - lastTriggerRef.current > cooldownMs
+          ) {
+            console.log(
+              '[DecibelReader] Threshold exceeded! dB:',
+              currentDb.toFixed(1),
+              '-> running classification'
+            );
             lastTriggerRef.current = now;
             void runClassificationAndMaybeRecord(currentDb);
           }
@@ -332,12 +400,18 @@ export function useAudioCapture({
         tick();
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        if (msg.includes("device") || msg.includes("NotFound") || msg.includes("not found")) {
+        if (
+          msg.includes('device') ||
+          msg.includes('NotFound') ||
+          msg.includes('not found')
+        ) {
           setError(
-            "No microphone found. Connect a USB microphone (on Raspberry Pi) or ensure your mic is connected and set as default."
+            'No microphone found. Connect a USB microphone (on Raspberry Pi) or ensure your mic is connected and set as default.'
           );
-        } else if (msg.includes("Permission") || msg.includes("denied")) {
-          setError("Microphone access denied. Allow microphone access in your browser and reload.");
+        } else if (msg.includes('Permission') || msg.includes('denied')) {
+          setError(
+            'Microphone access denied. Allow microphone access in your browser and reload.'
+          );
         } else {
           setError(msg);
         }
@@ -349,11 +423,25 @@ export function useAudioCapture({
       cancelled = true;
       cancelAnimationFrame(animationId!);
       scriptProcessor?.disconnect();
-      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current?.getTracks().forEach(t => t.stop());
       streamRef.current = null;
       setStream(null);
     };
-  }, [enabled, thresholdDb, cooldownMs, runClassificationAndMaybeRecord, deviceId]);
+  }, [
+    enabled,
+    thresholdDb,
+    cooldownMs,
+    runClassificationAndMaybeRecord,
+    deviceId,
+  ]);
 
-  return { dB, isRecording, error, stream, lastDetection, devices, startRecording };
+  return {
+    dB,
+    isRecording,
+    error,
+    stream,
+    lastDetection,
+    devices,
+    startRecording,
+  };
 }

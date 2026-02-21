@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { AppConfig } from "../../shared/types";
+import { AnalyticsView } from "./components/AnalyticsView";
 import { AudioVisualizer } from "./components/AudioVisualizer";
 import { RecordingsList } from "./components/RecordingsList";
 import { StatusIndicator } from "./components/StatusIndicator";
@@ -8,7 +9,10 @@ import { useAudioCapture } from "./hooks/useAudioCapture";
 
 const API_BASE = "/api";
 
+type View = "monitor" | "analytics";
+
 export default function App() {
+  const [view, setView] = useState<View>("monitor");
   const [config, setConfig] = useState<AppConfig>({
     thresholdDb: -30,
     recordDurationSeconds: 0.5,
@@ -54,14 +58,42 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      <div className="mx-auto max-w-2xl px-4 py-8">
-        <header className="mb-8 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-zinc-100">Decibel Reader</h1>
+      <div className={`mx-auto px-4 py-8 ${view === "analytics" ? "max-w-5xl" : "max-w-2xl"}`}>
+        <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <h1 className="text-2xl font-bold text-zinc-100">Decibel Reader</h1>
+            <nav className="flex gap-1 rounded-lg bg-zinc-900 p-1">
+              <button
+                type="button"
+                onClick={() => setView("monitor")}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  view === "monitor"
+                    ? "bg-emerald-600 text-white"
+                    : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                }`}
+              >
+                Monitor
+              </button>
+              <button
+                type="button"
+                onClick={() => setView("analytics")}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  view === "analytics"
+                    ? "bg-emerald-600 text-white"
+                    : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                }`}
+              >
+                Analytics
+              </button>
+            </nav>
+          </div>
           <StatusIndicator connected={micEnabled} isRecording={isRecording} error={error} />
         </header>
 
         <main className="space-y-6">
-          {!micEnabled ? (
+          {view === "analytics" ? (
+            <AnalyticsView />
+          ) : !micEnabled ? (
             <div className="rounded-lg bg-zinc-900 p-6 text-center">
               <p className="mb-4 text-zinc-400">
                 Click &quot;Start monitoring&quot; to begin. You&apos;ll be asked to allow microphone access.
@@ -98,8 +130,12 @@ export default function App() {
               )}
             </>
           )}
-          <ThresholdConfig config={config} onSave={handleSaveConfig} devices={devices} />
-          <RecordingsList refreshTrigger={recordingsVersion} />
+          {view === "monitor" && (
+            <>
+              <ThresholdConfig config={config} onSave={handleSaveConfig} devices={devices} />
+              <RecordingsList refreshTrigger={recordingsVersion} />
+            </>
+          )}
         </main>
 
         <footer className="mt-12 text-center text-sm text-zinc-500">

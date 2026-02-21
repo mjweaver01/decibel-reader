@@ -142,9 +142,9 @@ export function ThresholdConfig({ config, onSave, devices }: ThresholdConfigProp
             <input
               id="minScore"
               type="range"
-              min={0.2}
-              max={0.95}
-              step={0.05}
+              min={0.01}
+              max={0.99}
+              step={0.01}
               value={classificationMinScore}
               onChange={(e) => setClassificationMinScore(Number(e.target.value))}
               className="w-full"
