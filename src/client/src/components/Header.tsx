@@ -1,9 +1,12 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useMonitoringStatus } from '../context/MonitoringStatusContext';
+import { MiniAudioVisualizer } from './MiniAudioVisualizer';
 import { StatusIndicator } from './StatusIndicator';
 
 export function Header() {
-  const { status } = useMonitoringStatus();
+  const { status, stream, dB, isRecording } = useMonitoringStatus();
+  const location = useLocation();
+  const isAnalyticsPage = location.pathname === '/analytics';
 
   return (
     <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
@@ -16,6 +19,13 @@ export function Header() {
           isRecording={status.isRecording}
           error={status.error}
         />
+        {isAnalyticsPage && stream && (
+          <MiniAudioVisualizer
+            stream={stream}
+            isRecording={isRecording}
+            dB={dB}
+          />
+        )}
         <nav className="flex gap-1 rounded-lg bg-zinc-900 p-1">
           <NavLink
             to="/"
