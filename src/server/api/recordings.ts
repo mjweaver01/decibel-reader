@@ -18,13 +18,23 @@ export const recordingsApi = {
       return new Response('Missing audio file', { status: 400 });
     }
 
-    const classification =
-      String(formData.get('classification') || '').trim() || undefined;
+    let classifications: { label: string; score: number }[] = [];
+    const classificationsStr = formData.get('classifications');
+    if (classificationsStr && typeof classificationsStr === 'string') {
+      try {
+        classifications = JSON.parse(classificationsStr) as {
+          label: string;
+          score: number;
+        }[];
+      } catch {
+        // ignore invalid JSON
+      }
+    }
     const meta = await saveRecordingFromUpload(
       audio,
       peakDb,
       durationSeconds,
-      classification
+      classifications
     );
     logger('[Recorder] Saved:', meta.filename, 'peakDb:', peakDb);
     return Response.json(meta);

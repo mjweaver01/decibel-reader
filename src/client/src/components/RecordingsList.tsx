@@ -124,11 +124,18 @@ export function RecordingsList({ refreshTrigger = 0 }: RecordingsListProps) {
                 </p>
                 <p className="text-xs text-zinc-500">
                   Peak: {r.peakDb.toFixed(1)} dB · {r.durationSeconds}s
-                  {r.classification && (
+                  {r.classifications.length > 0 && (
                     <>
                       {' · '}
-                      <span className="text-emerald-400/90">
-                        {r.classification}
+                      <span
+                        className="text-emerald-400/90"
+                        title={r.classifications
+                          .map(c => `${c.label} (${(c.score * 100).toFixed(0)}%)`)
+                          .join(', ')}
+                      >
+                        {r.classifications[0].label}
+                        {r.classifications.length > 1 &&
+                          ` +${r.classifications.length - 1}`}
                       </span>
                     </>
                   )}

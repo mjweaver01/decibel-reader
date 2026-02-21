@@ -15,11 +15,16 @@ export interface AppConfig {
   notificationsEnabled: boolean;
 }
 
+export interface ClassificationResult {
+  label: string;
+  score: number;
+}
+
 export interface RecordingMetadata {
   id: string;
   filename: string;
   timestamp: string;
   peakDb: number;
   durationSeconds: number;
-  classification?: string;
+  classifications: ClassificationResult[];
 }

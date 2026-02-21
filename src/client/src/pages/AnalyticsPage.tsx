@@ -123,9 +123,12 @@ export function AnalyticsPage() {
     }
 
     if (classificationFilter !== 'all') {
-      list = list.filter(
-        r => (r.classification ?? '(none)') === classificationFilter
-      );
+      list = list.filter(r => {
+        if (classificationFilter === '(none)') {
+          return r.classifications.length === 0;
+        }
+        return r.classifications.some(c => c.label === classificationFilter);
+      });
     }
 
     return list;
@@ -139,13 +142,18 @@ export function AnalyticsPage() {
 
     for (const r of filteredRecordings) {
       const key = getBucketKey(r.timestamp, grouping);
-      const cls = r.classification ?? '(none)';
       if (!buckets.has(key)) {
         buckets.set(key, { count: 0, classifications: {} });
       }
       const b = buckets.get(key)!;
       b.count += 1;
-      b.classifications[cls] = (b.classifications[cls] ?? 0) + 1;
+      const labels =
+        r.classifications.length > 0
+          ? r.classifications.map(c => c.label)
+          : ['(none)'];
+      for (const cls of labels) {
+        b.classifications[cls] = (b.classifications[cls] ?? 0) + 1;
+      }
     }
 
     const allClasses = new Set<string>();
@@ -173,7 +181,11 @@ export function AnalyticsPage() {
   const classifications = useMemo(() => {
     const set = new Set<string>();
     for (const r of recordings) {
-      set.add(r.classification ?? '(none)');
+      if (r.classifications.length > 0) {
+        for (const c of r.classifications) set.add(c.label);
+      } else {
+        set.add('(none)');
+      }
     }
     return Array.from(set).sort();
   }, [recordings]);
@@ -199,8 +211,13 @@ export function AnalyticsPage() {
     const total = filteredRecordings.length;
     const byClass: Record<string, number> = {};
     for (const r of filteredRecordings) {
-      const c = r.classification ?? '(none)';
-      byClass[c] = (byClass[c] ?? 0) + 1;
+      const labels =
+        r.classifications.length > 0
+          ? r.classifications.map(c => c.label)
+          : ['(none)'];
+      for (const c of labels) {
+        byClass[c] = (byClass[c] ?? 0) + 1;
+      }
     }
     const days = dateRange === 'all' ? 0 : parseInt(dateRange, 10);
     const avgPerDay = days > 0 && total > 0 ? (total / days).toFixed(1) : '-';

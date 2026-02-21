@@ -112,13 +112,13 @@ export function useAudioCapture({
       blob: Blob,
       peakDb: number,
       durationSeconds: number,
-      classification?: string
+      classifications: { label: string; score: number }[]
     ) => {
       const formData = new FormData();
       formData.append('audio', blob, 'recording.webm');
       formData.append('peakDb', String(peakDb));
       formData.append('durationSeconds', String(durationSeconds));
-      if (classification) formData.append('classification', classification);
+      formData.append('classifications', JSON.stringify(classifications));
 
       const res = await fetch(`${API_BASE}/recordings`, {
         method: 'POST',
@@ -168,7 +168,7 @@ export function useAudioCapture({
           'KB'
         );
 
-        let label: string | null = null;
+        let classifications: { label: string; score: number }[] = [];
         let shouldUpload = true;
 
         try {
@@ -199,59 +199,68 @@ export function useAudioCapture({
             const results = classifyAudio(classifier, resampled, 16000);
             const categories =
               results[0]?.classifications?.[0]?.categories ?? [];
+
+            classifications = categories.map(c => ({
+              label: c.categoryName || c.displayName || '',
+              score: c.score ?? 0,
+            }));
+
             const topCategory = categories[0];
+            const minScore = classificationMinScoreRef.current;
+            const soundTypesToCheck =
+              soundTypesRef.current.filter(s => s.trim());
+            const recordAnyLoudSound = soundTypesToCheck.length === 0;
 
             if (topCategory) {
-              logger.log(
-                '[DecibelReader] Classification:',
-                topCategory.displayName || topCategory.categoryName,
-                `(${(topCategory.score * 100).toFixed(0)}%)`
-              );
-              label =
+              const topLabel =
                 topCategory.displayName || topCategory.categoryName;
               setLastDetection(
-                `${label} (${(topCategory.score * 100).toFixed(0)}%)`
+                `${topLabel} (${(topCategory.score * 100).toFixed(0)}%)`
+              );
+              logger.log(
+                '[DecibelReader] Classifications:',
+                classifications.map(c => `${c.label}:${(c.score * 100).toFixed(0)}%`).join(', ')
               );
 
-              const categoryLabel =
-                topCategory.categoryName || topCategory.displayName || '';
-              if (
-                notificationsEnabledRef.current &&
-                notificationSoundsRef.current.some(s => s === categoryLabel)
-              ) {
-                showNotification(label, topCategory.score);
+              // Notifications: any classification matching notificationSounds
+              if (notificationSoundsRef.current.length > 0) {
+                const notifyMatch = classifications.find(
+                  c =>
+                    notificationSoundsRef.current.includes(c.label) &&
+                    c.score >= minScore
+                );
+                if (
+                  notificationsEnabledRef.current &&
+                  notifyMatch
+                ) {
+                  showNotification(notifyMatch.label, notifyMatch.score);
+                }
               }
 
-              const soundTypesToCheck =
-                soundTypesRef.current.filter(s => s.trim());
-              const recordAnyLoudSound = soundTypesToCheck.length === 0;
-              const matchedSelected = soundTypesToCheck.find(
-                selected => categoryLabel === selected
+              // Upload: recordAnyLoudSound ? any above minScore : any matches soundTypes with score >= minScore
+              const matchingSelected = classifications.find(
+                c =>
+                  soundTypesToCheck.includes(c.label) && c.score >= minScore
               );
-              const match = !!matchedSelected;
-              const scoreOk =
-                topCategory.score >= classificationMinScoreRef.current;
+              const anyAboveMinScore = classifications.some(
+                c => c.score >= minScore
+              );
               shouldUpload = recordAnyLoudSound
-                ? scoreOk
-                : match && scoreOk;
-              if (!recordAnyLoudSound) {
-                label = matchedSelected ?? label;
-              }
+                ? anyAboveMinScore
+                : !!matchingSelected;
               logger.log(
                 '[DecibelReader] shouldUpload:',
                 shouldUpload,
                 '(match:',
-                !!matchedSelected,
-                'scoreOk:',
-                scoreOk,
+                !!matchingSelected,
+                'anyAboveMinScore:',
+                anyAboveMinScore,
                 ')'
               );
             } else {
               logger.log('[DecibelReader] No classification result');
               setLastDetection(null);
-              const soundTypesToCheck =
-                soundTypesRef.current.filter(s => s.trim());
-              shouldUpload = soundTypesToCheck.length === 0;
+              shouldUpload = recordAnyLoudSound;
             }
           } else {
             logger.log(
@@ -277,12 +286,16 @@ export function useAudioCapture({
         }
 
         try {
-          logger.log('[DecibelReader] Uploading:', label ?? '(no label)');
+          logger.log(
+            '[DecibelReader] Uploading:',
+            classifications.length,
+            'classifications'
+          );
           await uploadRecording(
             blob,
             peakDb,
             durationSeconds,
-            label ?? undefined
+            classifications
           );
           logger.log('[DecibelReader] Upload complete');
           onRecordingUploaded?.();

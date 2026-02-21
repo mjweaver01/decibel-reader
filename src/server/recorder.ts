@@ -30,12 +30,12 @@ export async function initRecorder(): Promise<void> {
       timestamp TEXT NOT NULL,
       peak_db REAL NOT NULL,
       duration_seconds REAL NOT NULL,
-      classification TEXT,
+      classifications TEXT NOT NULL,
       created_at TEXT DEFAULT (datetime('now'))
     )
   `);
   try {
-    db.run('ALTER TABLE recordings ADD COLUMN classification TEXT');
+    db.run('ALTER TABLE recordings ADD COLUMN classifications TEXT');
   } catch {
     // column already exists
   }
@@ -52,18 +52,29 @@ async function migrateFromJson(): Promise<void> {
 
     const database = getDb();
     const insert = database.prepare(
-      'INSERT OR IGNORE INTO recordings (id, filename, timestamp, peak_db, duration_seconds, classification) VALUES (?, ?, ?, ?, ?, ?)'
+      'INSERT OR IGNORE INTO recordings (id, filename, timestamp, peak_db, duration_seconds, classifications) VALUES (?, ?, ?, ?, ?, ?)'
     );
 
     const insertMany = database.transaction((rows: RecordingMetadata[]) => {
       for (const row of rows) {
+        const classifications =
+          (row.classifications?.length ?? 0) > 0
+            ? row.classifications!
+            : (row as { classification?: string }).classification
+              ? [
+                  {
+                    label: (row as { classification?: string }).classification!,
+                    score: 1,
+                  },
+                ]
+              : [];
         insert.run(
           row.id,
           row.filename,
           row.timestamp,
           row.peakDb,
           row.durationSeconds,
-          row.classification ?? null
+          JSON.stringify(classifications)
         );
       }
     });
@@ -84,7 +95,7 @@ export async function saveRecordingFromUpload(
   file: File | Blob,
   peakDb: number,
   durationSeconds: number,
-  classification?: string
+  classifications: { label: string; score: number }[]
 ): Promise<RecordingMetadata> {
   const database = getDb();
 
@@ -96,8 +107,10 @@ export async function saveRecordingFromUpload(
 
   await Bun.write(filepath, file);
 
+  const classificationsJson = JSON.stringify(classifications);
+
   const insert = database.prepare(
-    'INSERT INTO recordings (id, filename, timestamp, peak_db, duration_seconds, classification) VALUES (?, ?, ?, ?, ?, ?)'
+    'INSERT INTO recordings (id, filename, timestamp, peak_db, duration_seconds, classifications) VALUES (?, ?, ?, ?, ?, ?)'
   );
   insert.run(
     id,
@@ -105,9 +118,9 @@ export async function saveRecordingFromUpload(
     new Date().toISOString(),
     peakDb,
     durationSeconds,
-    classification ?? null
+    classificationsJson
   );
-  logger('[Recorder] DB insert:', id, classification ?? '(no classification)');
+  logger('[Recorder] DB insert:', id, classifications.length, 'classifications');
 
   return {
     id,
@@ -115,7 +128,7 @@ export async function saveRecordingFromUpload(
     timestamp: new Date().toISOString(),
     peakDb,
     durationSeconds,
-    classification: classification ?? undefined,
+    classifications,
   };
 }
 
@@ -124,7 +137,7 @@ export async function getRecordings(): Promise<RecordingMetadata[]> {
 
   const rows = database
     .query(
-      'SELECT id, filename, timestamp, peak_db, duration_seconds, classification FROM recordings ORDER BY timestamp DESC'
+      'SELECT id, filename, timestamp, peak_db, duration_seconds, classifications FROM recordings ORDER BY timestamp DESC'
     )
     .all() as {
     id: string;
@@ -132,17 +145,30 @@ export async function getRecordings(): Promise<RecordingMetadata[]> {
     timestamp: string;
     peak_db: number;
     duration_seconds: number;
-    classification: string | null;
+    classifications: string | null;
   }[];
 
-  return rows.map(r => ({
-    id: r.id,
-    filename: r.filename,
-    timestamp: r.timestamp,
-    peakDb: r.peak_db,
-    durationSeconds: r.duration_seconds,
-    classification: r.classification ?? undefined,
-  }));
+  return rows.map(r => {
+    let classifications: { label: string; score: number }[] = [];
+    if (r.classifications) {
+      try {
+        classifications = JSON.parse(r.classifications) as {
+          label: string;
+          score: number;
+        }[];
+      } catch {
+        // ignore invalid JSON
+      }
+    }
+    return {
+      id: r.id,
+      filename: r.filename,
+      timestamp: r.timestamp,
+      peakDb: r.peak_db,
+      durationSeconds: r.duration_seconds,
+      classifications,
+    };
+  });
 }
 
 export function getRecordingsDir(): string {
