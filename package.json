@@ -1,0 +1,23 @@
+{
+  "name": "decibel-reader",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run src/server/index.ts",
+    "build": "bun build --target=bun --production --outdir=dist ./src/server/index.ts",
+    "start": "bun run dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "bun-plugin-tailwind": "^0.1.2",
+    "tailwindcss": "^4",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}
