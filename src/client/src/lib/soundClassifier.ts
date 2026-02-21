@@ -3,10 +3,8 @@ import {
   AudioClassifier,
   type AudioClassifierResult,
 } from '@mediapipe/tasks-audio';
-
-const YAMNET_MODEL =
-  'https://storage.googleapis.com/mediapipe-models/audio_classifier/yamnet/float32/1/yamnet.tflite';
-const WASM_PATH = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-audio/wasm';
+import { logger } from '@shared/logger';
+import { YAMNET_MODEL, WASM_PATH } from '@shared/constants';
 
 let classifierPromise: Promise<AudioClassifier> | null = null;
 
@@ -15,7 +13,7 @@ export async function getClassifier(options?: {
   maxResults?: number;
 }): Promise<AudioClassifier> {
   if (!classifierPromise) {
-    console.log('[DecibelReader] Loading YAMNet classifier...');
+    logger('[DecibelReader] Loading YAMNet classifier...');
     classifierPromise = (async () => {
       const wasm = await FilesetResolver.forAudioTasks(WASM_PATH);
       const classifier = await AudioClassifier.createFromModelPath(
@@ -23,7 +21,7 @@ export async function getClassifier(options?: {
         YAMNET_MODEL
       );
       classifier.setDefaultSampleRate(16000);
-      console.log('[DecibelReader] Classifier loaded');
+      logger('[DecibelReader] Classifier loaded');
       return classifier;
     })();
   }

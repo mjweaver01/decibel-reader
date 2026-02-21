@@ -1,5 +1,6 @@
 export interface AppConfig {
   thresholdDb: number;
+  /** Seconds sound must stay below threshold before stopping recording */
   recordDurationSeconds: number;
   captureIntervalMs: number;
   /** If empty, record on any loud sound. If set, only record when classification matches. */
@@ -9,14 +10,6 @@ export interface AppConfig {
   /** Microphone deviceId. Empty = use default or first available. */
   deviceId?: string;
 }
-
-export const DEFAULT_CONFIG: AppConfig = {
-  thresholdDb: -30,
-  recordDurationSeconds: 0.1,
-  captureIntervalMs: 100,
-  soundTypes: ['Throat clearing', 'Cough', 'Burping, eructation'],
-  classificationMinScore: 0.2,
-};
 
 export interface RecordingMetadata {
   id: string;

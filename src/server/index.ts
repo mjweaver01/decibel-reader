@@ -1,12 +1,13 @@
 import { join } from 'path';
-import { DEFAULT_CONFIG, type AppConfig } from '../shared/types.js';
-import clientHtml from '../client/index.html';
+import clientHtml from '@client/index.html';
+import { DEFAULT_CONFIG, type AppConfig } from '@shared/types';
 import {
   getRecordings,
   getRecordingsDir,
   initRecorder,
   saveRecordingFromUpload,
-} from './recorder.js';
+} from './recorder';
+import { logger } from '@shared/logger';
 
 const CONFIG_FILE = join(import.meta.dir, '../../config.json');
 
@@ -83,7 +84,7 @@ const server = Bun.serve({
           durationSeconds,
           classification
         );
-        console.log('[Recorder] Saved:', meta.filename, 'peakDb:', peakDb);
+        logger('[Recorder] Saved:', meta.filename, 'peakDb:', peakDb);
         return Response.json(meta);
       },
     },
@@ -121,4 +122,12 @@ const server = Bun.serve({
 await loadConfig();
 await initRecorder();
 
-console.log(`Decibel Reader server running at http://localhost:${server.port}`);
+console.log(`
+  Decibel Reader 
+  ----------------
+  server: http://localhost:${server.port}
+  environment: ${process.env.NODE_ENV ?? 'development'}
+  config:
+  ${JSON.stringify(config, null, 2)}
+  ----------------
+`);

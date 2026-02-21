@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { API_BASE, MIN_DB, MAX_DB } from '@shared/constants';
+import { logger } from '@shared/logger';
 import { getClassifier, classifyAudio } from '../lib/soundClassifier';
-
-const MIN_DB = -60;
-const MAX_DB = 0;
 
 function computeDbFromAnalyser(
   analyser: AnalyserNode,
@@ -39,7 +38,8 @@ export interface MediaDeviceInfo {
 
 export interface UseAudioCaptureOptions {
   thresholdDb: number;
-  recordDurationMs: number;
+  /** How long (ms) sound must stay below threshold before stopping the recording */
+  bufferMs: number;
   enabled: boolean;
   onRecordingUploaded?: () => void;
   /** If empty, record on any loud sound. If set, only record when classification matches. */
@@ -49,9 +49,11 @@ export interface UseAudioCaptureOptions {
   deviceId?: string;
 }
 
+const MAX_RECORDING_MS = 60_000; // Safety cap: stop after 60s regardless
+
 export function useAudioCapture({
   thresholdDb,
-  recordDurationMs,
+  bufferMs,
   enabled,
   onRecordingUploaded,
   soundTypes = [],
@@ -67,7 +69,13 @@ export function useAudioCapture({
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const lastTriggerRef = useRef(0);
-  const cooldownMs = recordDurationMs + 1000;
+  const currentDbRef = useRef(0);
+  const belowThresholdSinceRef = useRef<number | null>(null);
+  const recordingStartTimeRef = useRef<number>(0);
+  const cooldownMs = bufferMs + 2000;
+  const classificationResolveRef = useRef<
+    ((result: { label: string | null; shouldUpload: boolean }) => void) | null
+  >(null);
 
   // Rolling buffer: ~1.5 sec at 48kHz = 72000 samples
   const BUFFER_SIZE = 72000;
@@ -76,44 +84,46 @@ export function useAudioCapture({
   const sampleRateRef = useRef(48000);
 
   const uploadRecording = useCallback(
-    async (blob: Blob, peakDb: number, classification?: string) => {
+    async (
+      blob: Blob,
+      peakDb: number,
+      durationSeconds: number,
+      classification?: string
+    ) => {
       const formData = new FormData();
       formData.append('audio', blob, 'recording.webm');
       formData.append('peakDb', String(peakDb));
-      formData.append('durationSeconds', String(recordDurationMs / 1000));
+      formData.append('durationSeconds', String(durationSeconds));
       if (classification) formData.append('classification', classification);
 
-      const res = await fetch('/api/recordings', {
+      const res = await fetch(`${API_BASE}/recordings`, {
         method: 'POST',
         body: formData,
       });
       if (!res.ok) throw new Error('Upload failed');
       return res.json();
     },
-    [recordDurationMs]
+    []
   );
 
-  const startRecordingRef = useRef<
-    (dB: number, classification?: string) => void
-  >(() => {});
+  const startRecordingRef = useRef<(peakDb: number) => void>(() => {});
   const startRecording = useCallback(
-    (peakDb: number, classification?: string) => {
+    (peakDb: number) => {
       const stream = streamRef.current;
       if (!stream || isRecording) {
-        console.log(
-          '[DecibelReader] startRecording skipped:',
-          !stream ? 'no stream' : 'already recording'
+        logger(
+          `[DecibelReader] startRecording skipped: ${!stream ? 'no stream' : 'already recording'}`
         );
         return;
       }
 
-      console.log(
-        '[DecibelReader] Recording started, duration:',
-        recordDurationMs,
-        'ms',
-        'classification:',
-        classification ?? '(none)'
-      );
+      const classificationPromise = new Promise<{
+        label: string | null;
+        shouldUpload: boolean;
+      }>(resolve => {
+        classificationResolveRef.current = resolve;
+      });
+
       setIsRecording(true);
       const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
       recorderRef.current = recorder;
@@ -125,51 +135,72 @@ export function useAudioCapture({
 
       recorder.onstop = async () => {
         recorderRef.current = null;
+        belowThresholdSinceRef.current = null;
         setIsRecording(false);
         const blob = new Blob(chunks, { type: 'audio/webm' });
-        console.log('[DecibelReader] Recording stopped, blob size:', blob.size);
-        if (blob.size > 0) {
-          try {
-            await uploadRecording(blob, peakDb, classification);
-            console.log('[DecibelReader] Upload successful');
-            onRecordingUploaded?.();
-          } catch (err) {
-            console.error('[DecibelReader] Upload failed:', err);
-            setError('Failed to save recording');
-          }
+        classificationResolveRef.current = null;
+
+        if (blob.size === 0) return;
+
+        const durationSeconds =
+          (Date.now() - recordingStartTimeRef.current) / 1000;
+
+        const result = await Promise.race([
+          classificationPromise,
+          new Promise<{ label: string | null; shouldUpload: boolean }>(
+            resolve =>
+              setTimeout(
+                () => resolve({ label: null, shouldUpload: true }),
+                500
+              )
+          ),
+        ]);
+
+        if (!result.shouldUpload) return;
+
+        try {
+          await uploadRecording(
+            blob,
+            peakDb,
+            durationSeconds,
+            result.label ?? undefined
+          );
+          onRecordingUploaded?.();
+        } catch (err) {
+          logger.error('[DecibelReader] Upload failed:', err);
+          setError('Failed to save recording');
         }
       };
 
       recorder.start(100);
-      setTimeout(() => recorder.stop(), recordDurationMs);
+      recordingStartTimeRef.current = Date.now();
+      belowThresholdSinceRef.current = null;
+      // Stop is handled dynamically in the tick loop when sound stays below threshold for bufferMs
     },
-    [isRecording, recordDurationMs, uploadRecording, onRecordingUploaded]
+    [isRecording, uploadRecording, onRecordingUploaded]
   );
   startRecordingRef.current = startRecording;
 
   const runClassificationAndMaybeRecord = useCallback(
     async (peakDb: number) => {
       const soundTypesToCheck = soundTypes.filter(s => s.trim());
-      console.log(
-        '[DecibelReader] runClassificationAndMaybeRecord peakDb:',
-        peakDb.toFixed(1),
-        'soundTypesToCheck:',
-        soundTypesToCheck
-      );
-
       const recordAnyLoudSound = soundTypesToCheck.length === 0;
-      if (recordAnyLoudSound) {
-        console.log(
-          '[DecibelReader] No sound types -> recording any loud sound, will classify'
-        );
-      }
+
+      // Record immediately to capture the full sound; classification runs in parallel for labeling
+      startRecordingRef.current(peakDb);
+
+      const resolveClassification = (
+        label: string | null,
+        shouldUpload: boolean
+      ) => {
+        classificationResolveRef.current?.({ label, shouldUpload });
+      };
 
       try {
         const buffer = bufferRef.current;
         const idx = bufferIndexRef.current;
         const sr = sampleRateRef.current;
 
-        // Get last ~1.5 sec of audio (YAMNet uses 0.96s frames; more context helps)
         const samplesNeeded = Math.min(BUFFER_SIZE, Math.floor(sr * 1.5));
         const audioChunk = new Float32Array(samplesNeeded);
         for (let i = 0; i < samplesNeeded; i++) {
@@ -179,42 +210,17 @@ export function useAudioCapture({
 
         const resampled = resampleTo16k(audioChunk, sr);
         if (resampled.length < 15000) {
-          console.log(
-            '[DecibelReader] Buffer too small for classification:',
-            resampled.length
-          );
-          if (recordAnyLoudSound) {
-            startRecordingRef.current(peakDb);
-          }
+          resolveClassification(null, recordAnyLoudSound);
           return;
         }
 
-        // Use low threshold so we get results; filter by classificationMinScore ourselves
         const classifier = await getClassifier({
           scoreThreshold: 0.05,
           maxResults: 5,
         });
-        console.log(
-          '[DecibelReader] Running classification, samples:',
-          resampled.length
-        );
         const results = classifyAudio(classifier, resampled, 16000);
         const categories = results[0]?.classifications?.[0]?.categories ?? [];
         const topCategory = categories[0];
-
-        if (categories.length === 0) {
-          console.log(
-            '[DecibelReader] Classification: no categories (all filtered by model)'
-          );
-        } else {
-          console.log(
-            '[DecibelReader] Classification:',
-            topCategory.categoryName || topCategory.displayName,
-            (topCategory.score * 100).toFixed(1) + '%',
-            'min:',
-            classificationMinScore * 100 + '%'
-          );
-        }
 
         if (topCategory) {
           const label = topCategory.displayName || topCategory.categoryName;
@@ -224,45 +230,25 @@ export function useAudioCapture({
 
           const categoryLabel =
             topCategory.categoryName || topCategory.displayName || '';
-          const matchedSelected = soundTypesToCheck.find(selected => {
-            if (categoryLabel === selected) return true;
-          });
+          const matchedSelected = soundTypesToCheck.find(
+            selected => categoryLabel === selected
+          );
           const match = !!matchedSelected;
           const scoreOk = topCategory.score >= classificationMinScore;
-          const willRecord = recordAnyLoudSound
-            ? scoreOk
-            : match && scoreOk;
-          // When no types: use top classification. When types selected: use matched one
+          const shouldUpload = recordAnyLoudSound ? scoreOk : match && scoreOk;
           const classificationToSave = recordAnyLoudSound
             ? label
-            : matchedSelected ?? label;
-          console.log(
-            '[DecibelReader] Match:',
-            match,
-            '| score OK:',
-            scoreOk,
-            '| will record:',
-            willRecord
-          );
-          if (willRecord) {
-            console.log(
-              '[DecibelReader] -> Starting recording, classification:',
-              classificationToSave
-            );
-            startRecordingRef.current(peakDb, classificationToSave);
-          }
-        } else if (recordAnyLoudSound) {
-          // No classification result but we record any loud sound - save without classification
-          startRecordingRef.current(peakDb);
+            : (matchedSelected ?? label);
+
+          resolveClassification(classificationToSave, shouldUpload);
         } else {
           setLastDetection(null);
+          resolveClassification(null, recordAnyLoudSound);
         }
       } catch (err) {
-        console.error('[DecibelReader] Classification failed:', err);
+        logger.error('[DecibelReader] Classification failed:', err);
         setLastDetection(null);
-        if (recordAnyLoudSound) {
-          startRecordingRef.current(peakDb);
-        }
+        resolveClassification(null, recordAnyLoudSound);
       }
     },
     [soundTypes, classificationMinScore]
@@ -341,10 +327,10 @@ export function useAudioCapture({
         setStream(stream);
         setError(null);
 
-        console.log('[DecibelReader] Mic acquired. Config:', {
+        logger.log('[DecibelReader] Mic acquired. Config:', {
           thresholdDb,
           cooldownMs,
-          recordDurationMs,
+          bufferMs,
           soundTypes,
           classificationMinScore,
         });
@@ -354,7 +340,7 @@ export function useAudioCapture({
         const source = ctx.createMediaStreamSource(stream);
         const analyser = ctx.createAnalyser();
         analyser.fftSize = 2048;
-        analyser.smoothingTimeConstant = 0.3;
+        analyser.smoothingTimeConstant = 0.15;
         source.connect(analyser);
 
         // Buffer audio for classification (ScriptProcessorNode is deprecated but widely supported)
@@ -381,10 +367,11 @@ export function useAudioCapture({
         const tick = () => {
           if (cancelled) return;
           const currentDb = computeDbFromAnalyser(analyser, dataArray);
+          currentDbRef.current = currentDb;
           setDb(currentDb);
 
           if (++logThrottle % 60 === 0) {
-            console.log(
+            logger.log(
               '[DecibelReader] dB:',
               currentDb.toFixed(1),
               '| threshold:',
@@ -395,11 +382,39 @@ export function useAudioCapture({
           }
 
           const now = Date.now();
+          const recorder = recorderRef.current;
+
+          // Dynamic stop: when recording, check if we should stop
+          if (recorder && recorder.state === 'recording') {
+            const recordingElapsed = now - recordingStartTimeRef.current;
+            if (recordingElapsed >= MAX_RECORDING_MS) {
+              logger.log(
+                '[DecibelReader] Max recording time reached, stopping'
+              );
+              recorder.stop();
+            } else if (currentDb < thresholdDb) {
+              if (belowThresholdSinceRef.current === null) {
+                belowThresholdSinceRef.current = now;
+              }
+              const belowElapsed = now - belowThresholdSinceRef.current;
+              if (belowElapsed >= bufferMs && recordingElapsed >= 300) {
+                logger.log(
+                  '[DecibelReader] Sound below threshold for',
+                  bufferMs,
+                  'ms, stopping recording'
+                );
+                recorder.stop();
+              }
+            } else {
+              belowThresholdSinceRef.current = null;
+            }
+          }
+
           if (
             currentDb >= thresholdDb &&
             now - lastTriggerRef.current > cooldownMs
           ) {
-            console.log(
+            logger.log(
               '[DecibelReader] Threshold exceeded! dB:',
               currentDb.toFixed(1),
               '-> running classification'
@@ -442,6 +457,7 @@ export function useAudioCapture({
   }, [
     enabled,
     thresholdDb,
+    bufferMs,
     cooldownMs,
     runClassificationAndMaybeRecord,
     deviceId,

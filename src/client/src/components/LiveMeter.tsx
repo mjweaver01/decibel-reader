@@ -1,10 +1,8 @@
+import { MIN_DB, MAX_DB } from '@shared/constants';
 interface LiveMeterProps {
   dB: number;
   threshold: number;
 }
-
-const MIN_DB = -60;
-const MAX_DB = 0;
 
 export function LiveMeter({ dB, threshold }: LiveMeterProps) {
   const percent = Math.max(

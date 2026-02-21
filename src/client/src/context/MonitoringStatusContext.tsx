@@ -6,9 +6,12 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { DEFAULT_CONFIG, type AppConfig } from '../../../shared/types';
-import { API_BASE } from '../constants';
-import { useAudioCapture, type MediaDeviceInfo } from '../hooks/useAudioCapture';
+import type { AppConfig } from '@shared/types';
+import { API_BASE, DEFAULT_CONFIG } from '@shared/constants';
+import {
+  useAudioCapture,
+  type MediaDeviceInfo,
+} from '../hooks/useAudioCapture';
 import { incrementRecordingsVersion } from '../store/recordingsVersion';
 
 const MIC_ENABLED_KEY = 'decibel-reader:micEnabled';
@@ -63,10 +66,16 @@ const MonitoringStatusContext = createContext<MonitoringContextValue | null>(
   null
 );
 
-export function MonitoringStatusProvider({ children }: { children: ReactNode }) {
+export function MonitoringStatusProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
   const [status, setStatus] = useState<MonitoringStatus>(defaultStatus);
   const [micEnabled, setMicEnabledState] = useState(getStoredMicEnabled);
-  const [config, setConfig] = useState<AppConfig>(() => ({ ...DEFAULT_CONFIG }));
+  const [config, setConfig] = useState<AppConfig>(() => ({
+    ...DEFAULT_CONFIG,
+  }));
 
   const setMicEnabled = useCallback((v: boolean) => {
     setMicEnabledState(v);
@@ -76,7 +85,7 @@ export function MonitoringStatusProvider({ children }: { children: ReactNode }) 
   const { dB, isRecording, error, stream, lastDetection, devices } =
     useAudioCapture({
       thresholdDb: config.thresholdDb,
-      recordDurationMs: config.recordDurationSeconds * 1000,
+      bufferMs: config.recordDurationSeconds * 1000,
       enabled: micEnabled,
       onRecordingUploaded: incrementRecordingsVersion,
       soundTypes: config.soundTypes ?? [],

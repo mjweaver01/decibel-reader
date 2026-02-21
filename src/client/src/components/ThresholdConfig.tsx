@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { AppConfig } from '../../../shared/types';
+import type { AppConfig } from '@shared/types';
 import { getYamnetLabels } from '../lib/yamnetLabels';
 import type { MediaDeviceInfo } from '../hooks/useAudioCapture';
 import { SoundTypeMultiselect } from './SoundTypeMultiselect';
@@ -178,7 +178,7 @@ export function ThresholdConfig({
             htmlFor="duration"
             className="mb-1 block text-sm text-zinc-400"
           >
-            Record Duration (seconds)
+            Buffer below threshold (seconds)
           </label>
           <select
             id="duration"
@@ -191,6 +191,7 @@ export function ThresholdConfig({
             <option value={0.5}>0.5 seconds</option>
             <option value={0.75}>0.75 seconds</option>
             <option value={1}>1 second</option>
+            <option value={1.5}>1.5 seconds</option>
             <option value={2}>2 seconds</option>
             <option value={3}>3 seconds</option>
             <option value={5}>5 seconds</option>
@@ -198,6 +199,9 @@ export function ThresholdConfig({
             <option value={15}>15 seconds</option>
             <option value={30}>30 seconds</option>
           </select>
+          <p className="mt-1 text-xs text-zinc-500">
+            Recording stops after sound stays below threshold for this long
+          </p>
         </div>
         <button
           type="submit"

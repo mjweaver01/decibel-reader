@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { RecordingMetadata } from '../../../shared/types';
-import { API_BASE } from '../constants';
+import type { RecordingMetadata } from '@shared/types';
+import { API_BASE } from '@shared/constants';
 
 const PAGE_SIZE = 15;
 const MAX_HEIGHT = 'min(400px, 50vh)';

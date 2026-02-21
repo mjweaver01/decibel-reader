@@ -1,42 +1,6 @@
-const YAMNET_CLASS_MAP_URL =
-  'https://raw.githubusercontent.com/tensorflow/models/master/research/audioset/yamnet/yamnet_class_map.csv';
+import { YAMNET_CLASS_MAP_URL, FALLBACK_LABELS } from '@shared/constants';
 
 let labelsPromise: Promise<string[]> | null = null;
-
-const FALLBACK_LABELS = [
-  'Throat clearing',
-  'Cough',
-  'Burping, eructation',
-  'Sneeze',
-  'Hiccup',
-  'Speech',
-  'Dog',
-  'Bark',
-  'Cat',
-  'Meow',
-  'Door',
-  'Knock',
-  'Glass',
-  'Breaking',
-  'Baby cry, infant cry',
-  'Gargling',
-  'Siren',
-  'Alarm',
-  'Vehicle horn, car horn, honking',
-  'Car',
-  'Conversation',
-  'Walk, footsteps',
-  'Rain',
-  'Thunderstorm',
-  'Fire',
-  'Explosion',
-  'Gunshot, gunfire',
-  'Screaming',
-  'Laughter',
-  'Clapping',
-  'Cheering',
-  'Crowd',
-];
 
 /** Fetches and parses YAMNet class labels from the official class map. Returns display_name values. */
 export async function getYamnetLabels(): Promise<string[]> {

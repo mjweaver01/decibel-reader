@@ -9,6 +9,8 @@
     "jsx": "react-jsx",
     "types": ["bun-types"],
     "paths": {
+      "@client/*": ["./src/client/*"],
+      "@server/*": ["./src/server/*"],
       "@shared/*": ["./src/shared/*"]
     }
   },

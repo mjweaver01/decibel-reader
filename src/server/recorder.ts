@@ -1,7 +1,8 @@
 import { Database } from 'bun:sqlite';
 import { mkdir } from 'fs/promises';
 import { join } from 'path';
-import type { RecordingMetadata } from '../shared/types.js';
+import type { RecordingMetadata } from '@shared/types';
+import { logger } from '@shared/logger';
 
 const RECORDINGS_DIR = join(import.meta.dir, '../../recordings');
 const DB_PATH = join(RECORDINGS_DIR, 'recordings.sqlite');
@@ -68,7 +69,7 @@ async function migrateFromJson(): Promise<void> {
     });
 
     insertMany(list);
-    console.log(
+    logger(
       '[Recorder] Migrated',
       list.length,
       'recordings from index.json to SQLite'
@@ -106,11 +107,7 @@ export async function saveRecordingFromUpload(
     durationSeconds,
     classification ?? null
   );
-  console.log(
-    '[Recorder] DB insert:',
-    id,
-    classification ?? '(no classification)'
-  );
+  logger('[Recorder] DB insert:', id, classification ?? '(no classification)');
 
   return {
     id,
