@@ -11,11 +11,14 @@ interface RecordingsListProps {
   refreshTrigger?: number;
   /** When provided, use these recordings instead of fetching (e.g. filtered list from Analytics) */
   recordings?: RecordingMetadata[];
+  /** When true, show the total count next to the title (e.g. "Recordings (42)") */
+  showCount?: boolean;
 }
 
 export function RecordingsList({
   refreshTrigger = 0,
   recordings: recordingsProp,
+  showCount = false,
 }: RecordingsListProps) {
   const isMobile = useIsMobile();
 
@@ -79,10 +82,15 @@ export function RecordingsList({
     }
   };
 
+  const title =
+    showCount && !loading
+      ? `Recordings (${recordings.length})`
+      : 'Recordings';
+
   if (loading) {
     return (
       <div className="rounded-lg bg-zinc-900 p-6">
-        <h2 className="mb-4 text-lg font-semibold text-zinc-100">Recordings</h2>
+        <h2 className="mb-4 text-lg font-semibold text-zinc-100">{title}</h2>
         <p className="text-zinc-500">Loading...</p>
       </div>
     );
@@ -114,7 +122,7 @@ export function RecordingsList({
 
   return (
     <div className="rounded-lg bg-zinc-900 p-6 ring-1 ring-zinc-700/50">
-      <h2 className="mb-4 text-lg font-semibold text-zinc-100">Recordings</h2>
+      <h2 className="mb-4 text-lg font-semibold text-zinc-100">{title}</h2>
       {recordings.length === 0 ? (
         <p className="text-zinc-500">
           No recordings yet. When a detected sound exceeds the threshold,

@@ -140,13 +140,25 @@ export function AnalyticsPage() {
     return list;
   }, [recordings, dateRange, classificationFilter]);
 
+  const listRecordings = useMemo(() => {
+    if (
+      visibleClassifications.size > 0 &&
+      classificationFilter === 'all'
+    ) {
+      return filteredRecordings.filter(r =>
+        r.classifications.some(c => visibleClassifications.has(c.label))
+      );
+    }
+    return filteredRecordings;
+  }, [filteredRecordings, visibleClassifications, classificationFilter]);
+
   const sortedFilteredRecordings = useMemo(
     () =>
-      [...filteredRecordings].sort(
+      [...listRecordings].sort(
         (a, b) =>
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       ),
-    [filteredRecordings]
+    [listRecordings]
   );
 
   const chartData = useMemo(() => {
@@ -673,6 +685,7 @@ export function AnalyticsPage() {
         <RecordingsList
           recordings={sortedFilteredRecordings}
           refreshTrigger={recordingsVersion}
+          showCount
         />
       </div>
     </div>
