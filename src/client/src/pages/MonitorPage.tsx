@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { AppConfig } from '../../../shared/types';
+import { DEFAULT_CONFIG, type AppConfig } from '../../../shared/types';
 import { useMonitoringStatus } from '../context/MonitoringStatusContext';
 import { AudioVisualizer } from '../components/AudioVisualizer';
 import { RecordingsList } from '../components/RecordingsList';
@@ -12,12 +12,13 @@ export function MonitorPage() {
   const { setStatus } = useMonitoringStatus();
 
   const [config, setConfig] = useState<AppConfig>({
-    thresholdDb: -30,
-    recordDurationSeconds: 0.5,
-    captureIntervalMs: 500,
-    soundTypes: ['Throat clearing'],
-    classificationMinScore: 0.5,
+    thresholdDb: DEFAULT_CONFIG.thresholdDb,
+    recordDurationSeconds: DEFAULT_CONFIG.recordDurationSeconds,
+    captureIntervalMs: DEFAULT_CONFIG.captureIntervalMs,
+    soundTypes: DEFAULT_CONFIG.soundTypes,
+    classificationMinScore: DEFAULT_CONFIG.classificationMinScore,
   });
+
   const [recordingsVersion, setRecordingsVersion] = useState(0);
   const [micEnabled, setMicEnabled] = useState(false);
 
