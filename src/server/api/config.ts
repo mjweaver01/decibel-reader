@@ -1,9 +1,14 @@
 import type { AppConfig } from '@shared/types';
-import { config, saveConfig } from '../config';
+import { getConfig, saveConfig } from '../config';
+
+function getBrowserId(req: Request): string | null {
+  return req.headers.get('X-Browser-Id') ?? new URL(req.url).searchParams.get('browserId');
+}
 
 export const configApi = {
-  GET: () => Response.json(config),
+  GET: (req: Request) => Response.json(getConfig(getBrowserId(req))),
   POST: async (req: Request) => {
+    const browserId = getBrowserId(req);
     const body = (await req.json()) as Partial<AppConfig>;
     const updates: Partial<AppConfig> = {};
     const numKeys = [
@@ -22,8 +27,7 @@ export const configApi = {
       updates.notificationSounds = body.notificationSounds;
     if (typeof body.notificationsEnabled === 'boolean')
       updates.notificationsEnabled = body.notificationsEnabled;
-    Object.assign(config, updates);
-    await saveConfig();
+    const config = await saveConfig(browserId, updates);
     return Response.json(config);
   },
 };

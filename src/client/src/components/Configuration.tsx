@@ -254,11 +254,11 @@ export function Configuration({ config, onSave, devices }: ConfigurationProps) {
             Recording stops after sound stays below threshold for this long
           </p>
         </div>
-        <div className="space-y-3 rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
+        <div className="space-y-3 rounded-lg border border-zinc-700 bg-zinc-800/50 p-2">
           <button
             type="button"
             onClick={() => handleNotificationsToggle(!notificationsEnabled)}
-            className="flex w-full cursor-pointer items-center justify-between rounded-md py-1 text-left transition-colors hover:bg-zinc-700/50"
+            className="flex w-full cursor-pointer items-center justify-between rounded-md py-1 px-2 text-left transition-colors hover:bg-zinc-700/50"
           >
             <span className="text-sm font-medium text-zinc-100">
               Push notifications

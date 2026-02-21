@@ -1,5 +1,5 @@
 import { useMonitoringStatus } from '../context/MonitoringStatusContext';
-import { useRecordingsVersion } from '../store/recordingsVersion';
+import { useRecordingsVersion } from '../lib/recordingsVersion';
 import { AudioVisualizer } from '../components/AudioVisualizer';
 import { RecordingsList } from '../components/RecordingsList';
 import { Configuration } from '../components/Configuration';

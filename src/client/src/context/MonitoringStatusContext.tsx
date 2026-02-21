@@ -8,11 +8,12 @@ import {
 } from 'react';
 import type { AppConfig } from '@shared/types';
 import { API_BASE, DEFAULT_CONFIG } from '@shared/constants';
+import { getBrowserId } from '../lib/browserId';
 import {
   useAudioCapture,
   type MediaDeviceInfo,
 } from '../hooks/useAudioCapture';
-import { incrementRecordingsVersion } from '../store/recordingsVersion';
+import { incrementRecordingsVersion } from '../lib/recordingsVersion';
 
 const MIC_ENABLED_KEY = 'decibel-reader:micEnabled';
 
@@ -104,7 +105,10 @@ export function MonitoringStatusProvider({
   }, [micEnabled, isRecording, error, setStatus]);
 
   useEffect(() => {
-    fetch(`${API_BASE}/config`)
+    const browserId = getBrowserId();
+    fetch(`${API_BASE}/config`, {
+      headers: { 'X-Browser-Id': browserId },
+    })
       .then(r => r.json())
       .then(setConfig)
       .catch(() => {});
@@ -119,7 +123,10 @@ export function MonitoringStatusProvider({
     async (updates: Partial<AppConfig>) => {
       const res = await fetch(`${API_BASE}/config`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Browser-Id': getBrowserId(),
+        },
         body: JSON.stringify(updates),
       });
       const data = await res.json();

@@ -41,7 +41,7 @@ export function SoundTypeMultiselect({
 
   return (
     <div ref={containerRef} className="relative">
-      <label className="mb-2 block text-sm text-zinc-400">
+      <label className="block text-sm text-zinc-400">
         Sound types to record
       </label>
       <p className="mb-2 text-xs text-zinc-500">

@@ -16,7 +16,7 @@ import {
 } from 'recharts';
 import type { RecordingMetadata } from '@shared/types';
 import { API_BASE } from '@shared/constants';
-import { useRecordingsVersion } from '../store/recordingsVersion';
+import { useRecordingsVersion } from '../lib/recordingsVersion';
 
 type TimeGrouping = 'minute' | 'hour' | 'day' | 'week';
 
