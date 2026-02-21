@@ -3,14 +3,16 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   Legend,
   Line,
   LineChart,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
-  Cell,
 } from 'recharts';
 import type { RecordingMetadata } from '@shared/types';
 import { API_BASE } from '@shared/constants';
@@ -83,6 +85,8 @@ interface ChartDataPoint {
   classifications: Record<string, number>;
 }
 
+type ChartView = 'time' | 'distribution';
+
 export function AnalyticsPage() {
   const recordingsVersion = useRecordingsVersion();
   const [recordings, setRecordings] = useState<RecordingMetadata[]>([]);
@@ -91,8 +95,10 @@ export function AnalyticsPage() {
   const [dateRange, setDateRange] = useState<'7' | '30' | '90' | 'all'>('30');
   const [classificationFilter, setClassificationFilter] =
     useState<string>('all');
-  const [stacked, setStacked] = useState(true);
+  const [chartView, setChartView] = useState<ChartView>('time');
   const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
+  const [visibleClassifications, setVisibleClassifications] = useState<Set<string>>(new Set());
+  const [stacked, setStacked] = useState(true);
 
   const fetchRecordings = useCallback(async () => {
     try {
@@ -207,6 +213,40 @@ export function AnalyticsPage() {
     return Array.from(set).sort();
   }, [chartData]);
 
+  const displayedChartClassifications = useMemo(() => {
+    if (visibleClassifications.size === 0) return chartClassifications;
+    return chartClassifications.filter(c => visibleClassifications.has(c));
+  }, [chartClassifications, visibleClassifications]);
+
+  const toggleVisibleClassification = (cls: string) => {
+    setVisibleClassifications(prev => {
+      const next = new Set(prev);
+      if (next.has(cls)) next.delete(cls);
+      else next.add(cls);
+      return next;
+    });
+  };
+
+  const pieData = useMemo(() => {
+    const byClass: Record<string, number> = {};
+    for (const r of filteredRecordings) {
+      const labels =
+        r.classifications.length > 0
+          ? r.classifications.map(c => c.label)
+          : ['(none)'];
+      for (const c of labels) {
+        byClass[c] = (byClass[c] ?? 0) + 1;
+      }
+    }
+    return Object.entries(byClass)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, value], i) => ({
+        name,
+        value,
+        fill: COLORS[i % COLORS.length],
+      }));
+  }, [filteredRecordings]);
+
   const summary = useMemo(() => {
     const total = filteredRecordings.length;
     const byClass: Record<string, number> = {};
@@ -249,9 +289,21 @@ export function AnalyticsPage() {
       {/* Filters */}
       <div className="mb-6 flex flex-wrap gap-4">
         <div>
-          <label className="mb-1 block text-xs text-zinc-500">
-            Time grouping
-          </label>
+          <label className="mb-1 block text-xs text-zinc-500">View</label>
+          <select
+            value={chartView}
+            onChange={e => setChartView(e.target.value as ChartView)}
+            className="rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          >
+            <option value="time">Time series</option>
+            <option value="distribution">Distribution (pie)</option>
+          </select>
+        </div>
+        {chartView === 'time' && (
+          <div>
+            <label className="mb-1 block text-xs text-zinc-500">
+              Time grouping
+            </label>
           <select
             value={grouping}
             onChange={e => setGrouping(e.target.value as TimeGrouping)}
@@ -262,7 +314,8 @@ export function AnalyticsPage() {
             <option value="day">By day</option>
             <option value="week">By week</option>
           </select>
-        </div>
+          </div>
+        )}
         <div>
           <label className="mb-1 block text-xs text-zinc-500">Date range</label>
           <select
@@ -295,18 +348,22 @@ export function AnalyticsPage() {
             ))}
           </select>
         </div>
-        <div>
-          <label className="mb-1 block text-xs text-zinc-500">Chart type</label>
-          <select
-            value={chartType}
-            onChange={e => setChartType(e.target.value as 'bar' | 'line')}
-            className="rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-          >
-            <option value="bar">Bar</option>
-            <option value="line">Line</option>
-          </select>
-        </div>
-        {classificationFilter === 'all' && chartType === 'bar' && (
+        {chartView === 'time' && (
+          <div>
+            <label className="mb-1 block text-xs text-zinc-500">Chart type</label>
+            <select
+              value={chartType}
+              onChange={e => setChartType(e.target.value as 'bar' | 'line')}
+              className="rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            >
+              <option value="bar">Bar</option>
+              <option value="line">Line</option>
+            </select>
+          </div>
+        )}
+        {chartView === 'time' &&
+          classificationFilter === 'all' &&
+          chartType === 'bar' && (
           <div className="flex items-end">
             <label className="flex cursor-pointer items-center gap-2">
               <input
@@ -319,6 +376,39 @@ export function AnalyticsPage() {
                 Stack by classification
               </span>
             </label>
+          </div>
+        )}
+        {chartView === 'time' &&
+          classificationFilter === 'all' &&
+          chartClassifications.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-zinc-500">
+              Show in chart (click to toggle):
+            </span>
+            {chartClassifications.map(cls => (
+              <button
+                key={cls}
+                type="button"
+                onClick={() => toggleVisibleClassification(cls)}
+                className={`rounded px-2 py-1 text-xs ${
+                  visibleClassifications.size === 0 ||
+                  visibleClassifications.has(cls)
+                    ? 'bg-emerald-600/30 text-emerald-400'
+                    : 'bg-zinc-700/50 text-zinc-500 line-through'
+                }`}
+              >
+                {cls}
+              </button>
+            ))}
+            {visibleClassifications.size > 0 && (
+              <button
+                type="button"
+                onClick={() => setVisibleClassifications(new Set())}
+                className="rounded px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-700"
+              >
+                Reset
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -356,7 +446,47 @@ export function AnalyticsPage() {
       </div>
 
       {/* Chart */}
-      {chartData.length === 0 ? (
+      {chartView === 'distribution' ? (
+        pieData.length === 0 ? (
+          <div className="flex h-64 items-center justify-center rounded-md border border-zinc-700 bg-zinc-800/30 text-zinc-500">
+            No data to display for the selected filters
+          </div>
+        ) : (
+          <div className="mx-auto h-80 max-w-md">
+            <ResponsiveContainer width="100%" height={320}>
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={120}
+                  label={({ name, percent }) =>
+                    `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
+                  }
+                  labelLine={{ stroke: '#71717a' }}
+                >
+                  {pieData.map((_, i) => (
+                    <Cell key={i} fill={pieData[i].fill} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#27272a',
+                    border: '1px solid #3f3f46',
+                    borderRadius: '6px',
+                  }}
+                  formatter={(value: number | undefined) => [
+                    value ?? 0,
+                    'Count',
+                  ]}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )
+      ) : chartData.length === 0 ? (
         <div className="flex h-64 items-center justify-center rounded-md border border-zinc-700 bg-zinc-800/30 text-zinc-500">
           No data to display for the selected filters
         </div>
@@ -405,26 +535,37 @@ export function AnalyticsPage() {
                 }}
               />
               {classificationFilter === 'all' &&
-              chartClassifications.length > 0 ? (
-                <>
-                  {chartClassifications.map((cls, i) => (
-                    <Line
-                      key={cls}
-                      type="monotone"
-                      dataKey={cls}
-                      stroke={COLORS[i % COLORS.length]}
-                      strokeWidth={2}
-                      dot={false}
-                      name={cls}
+              (displayedChartClassifications.length > 0 ||
+                visibleClassifications.size === 0) ? (
+                displayedChartClassifications.length > 0 ? (
+                  <>
+                    {displayedChartClassifications.map((cls, i) => (
+                      <Line
+                        key={cls}
+                        type="monotone"
+                        dataKey={cls}
+                        stroke={COLORS[i % COLORS.length]}
+                        strokeWidth={2}
+                        dot={false}
+                        name={cls}
+                      />
+                    ))}
+                    <Legend
+                      wrapperStyle={{ fontSize: '12px' }}
+                      formatter={value => (
+                        <span className="text-zinc-400">{value}</span>
+                      )}
                     />
-                  ))}
-                  <Legend
-                    wrapperStyle={{ fontSize: '12px' }}
-                    formatter={value => (
-                      <span className="text-zinc-400">{value}</span>
-                    )}
+                  </>
+                ) : (
+                  <Line
+                    type="monotone"
+                    dataKey="count"
+                    stroke="#10b981"
+                    strokeWidth={2}
+                    dot={false}
                   />
-                </>
+                )
               ) : (
                 <Line
                   type="monotone"
@@ -483,27 +624,38 @@ export function AnalyticsPage() {
               />
               {stacked &&
               classificationFilter === 'all' &&
-              chartClassifications.length > 0 ? (
-                <>
-                  {chartClassifications.map((cls, i) => (
-                    <Bar
-                      key={cls}
-                      dataKey={cls}
-                      stackId="a"
-                      fill={COLORS[i % COLORS.length]}
-                      radius={
-                        i === chartClassifications.length - 1 ? [4, 4, 0, 0] : 0
-                      }
-                      name={cls}
+              (displayedChartClassifications.length > 0 ||
+                visibleClassifications.size === 0) ? (
+                displayedChartClassifications.length > 0 ? (
+                  <>
+                    {displayedChartClassifications.map((cls, i) => (
+                      <Bar
+                        key={cls}
+                        dataKey={cls}
+                        stackId="a"
+                        fill={COLORS[i % COLORS.length]}
+                        radius={
+                          i === displayedChartClassifications.length - 1
+                            ? [4, 4, 0, 0]
+                            : 0
+                        }
+                        name={cls}
+                      />
+                    ))}
+                    <Legend
+                      wrapperStyle={{ fontSize: '12px' }}
+                      formatter={value => (
+                        <span className="text-zinc-400">{value}</span>
+                      )}
                     />
-                  ))}
-                  <Legend
-                    wrapperStyle={{ fontSize: '12px' }}
-                    formatter={value => (
-                      <span className="text-zinc-400">{value}</span>
-                    )}
-                  />
-                </>
+                  </>
+                ) : (
+                  <Bar dataKey="count" fill="#10b981" radius={[4, 4, 0, 0]}>
+                    {chartData.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Bar>
+                )
               ) : (
                 <Bar dataKey="count" fill="#10b981" radius={[4, 4, 0, 0]}>
                   {chartData.map((_, i) => (

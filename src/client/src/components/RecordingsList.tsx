@@ -117,6 +117,13 @@ export function RecordingsList({ refreshTrigger = 0 }: RecordingsListProps) {
             <div
               key={r.id}
               className="flex items-center justify-between rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2"
+              title={
+                r.classifications.length > 0
+                  ? r.classifications
+                      .map(c => `${c.label} (${(c.score * 100).toFixed(0)}%)`)
+                      .join('\n')
+                  : undefined
+              }
             >
               <div className="min-w-0">
                 <p className="truncate text-sm text-zinc-100">
@@ -127,12 +134,7 @@ export function RecordingsList({ refreshTrigger = 0 }: RecordingsListProps) {
                   {r.classifications.length > 0 && (
                     <>
                       {' · '}
-                      <span
-                        className="text-emerald-400/90"
-                        title={r.classifications
-                          .map(c => `${c.label} (${(c.score * 100).toFixed(0)}%)`)
-                          .join(', ')}
-                      >
+                      <span className="text-emerald-400/90">
                         {r.classifications[0].label}
                         {r.classifications.length > 1 &&
                           ` +${r.classifications.length - 1}`}
