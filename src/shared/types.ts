@@ -14,8 +14,8 @@ export const DEFAULT_CONFIG: AppConfig = {
   thresholdDb: -30,
   recordDurationSeconds: 0.1,
   captureIntervalMs: 100,
-  soundTypes: ['Throat clearing'],
-  classificationMinScore: 0.3,
+  soundTypes: ['Throat clearing', 'Cough', 'Burping, eructation'],
+  classificationMinScore: 0.2,
 };
 
 export interface RecordingMetadata {

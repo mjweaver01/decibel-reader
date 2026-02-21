@@ -5,9 +5,11 @@ let labelsPromise: Promise<string[]> | null = null;
 
 const FALLBACK_LABELS = [
   'Throat clearing',
-  'Speech',
   'Cough',
+  'Burping, eructation',
   'Sneeze',
+  'Hiccup',
+  'Speech',
   'Dog',
   'Bark',
   'Cat',

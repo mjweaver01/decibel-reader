@@ -169,8 +169,8 @@ export function useAudioCapture({
         const idx = bufferIndexRef.current;
         const sr = sampleRateRef.current;
 
-        // Get last ~1 sec of audio (ring buffer)
-        const samplesNeeded = Math.min(BUFFER_SIZE, Math.floor(sr * 1.0));
+        // Get last ~1.5 sec of audio (YAMNet uses 0.96s frames; more context helps)
+        const samplesNeeded = Math.min(BUFFER_SIZE, Math.floor(sr * 1.5));
         const audioChunk = new Float32Array(samplesNeeded);
         for (let i = 0; i < samplesNeeded; i++) {
           const pos = (idx - samplesNeeded + i + BUFFER_SIZE) % BUFFER_SIZE;
@@ -178,7 +178,7 @@ export function useAudioCapture({
         }
 
         const resampled = resampleTo16k(audioChunk, sr);
-        if (resampled.length < 10000) {
+        if (resampled.length < 15000) {
           console.log(
             '[DecibelReader] Buffer too small for classification:',
             resampled.length
