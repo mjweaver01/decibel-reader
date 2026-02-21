@@ -4,6 +4,8 @@ import {
   BarChart,
   CartesianGrid,
   Legend,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -14,7 +16,7 @@ import type { RecordingMetadata } from '../../../shared/types';
 
 const API_BASE = '/api';
 
-type TimeGrouping = 'hour' | 'day' | 'week';
+type TimeGrouping = 'minute' | 'hour' | 'day' | 'week';
 
 const COLORS = [
   '#10b981', // emerald-500
@@ -28,6 +30,14 @@ const COLORS = [
 
 function formatBucketLabel(key: string, grouping: TimeGrouping): string {
   const d = new Date(key);
+  if (grouping === 'minute') {
+    return d.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  }
   if (grouping === 'hour') {
     return d.toLocaleDateString(undefined, {
       month: 'short',
@@ -47,6 +57,10 @@ function formatBucketLabel(key: string, grouping: TimeGrouping): string {
 
 function getBucketKey(timestamp: string, grouping: TimeGrouping): string {
   const d = new Date(timestamp);
+  if (grouping === 'minute') {
+    d.setSeconds(0, 0);
+    return d.toISOString();
+  }
   if (grouping === 'hour') {
     d.setMinutes(0, 0, 0);
     return d.toISOString();
@@ -77,6 +91,7 @@ export function AnalyticsView() {
   const [classificationFilter, setClassificationFilter] =
     useState<string>('all');
   const [stacked, setStacked] = useState(true);
+  const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
 
   const fetchRecordings = useCallback(async () => {
     try {
@@ -224,6 +239,7 @@ export function AnalyticsView() {
             onChange={e => setGrouping(e.target.value as TimeGrouping)}
             className="rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           >
+            <option value="minute">By minute</option>
             <option value="hour">By hour</option>
             <option value="day">By day</option>
             <option value="week">By week</option>
@@ -261,7 +277,18 @@ export function AnalyticsView() {
             ))}
           </select>
         </div>
-        {classificationFilter === 'all' && (
+        <div>
+          <label className="mb-1 block text-xs text-zinc-500">Chart type</label>
+          <select
+            value={chartType}
+            onChange={e => setChartType(e.target.value as 'bar' | 'line')}
+            className="rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          >
+            <option value="bar">Bar</option>
+            <option value="line">Line</option>
+          </select>
+        </div>
+        {classificationFilter === 'all' && chartType === 'bar' && (
           <div className="flex items-end">
             <label className="flex cursor-pointer items-center gap-2">
               <input
@@ -314,6 +341,82 @@ export function AnalyticsView() {
       {chartData.length === 0 ? (
         <div className="flex h-64 items-center justify-center rounded-md border border-zinc-700 bg-zinc-800/30 text-zinc-500">
           No data to display for the selected filters
+        </div>
+      ) : chartType === 'line' ? (
+        <div className="h-72">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+              data={chartData}
+              margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" />
+              <XAxis
+                dataKey="label"
+                stroke="#71717a"
+                tick={{ fill: '#a1a1aa', fontSize: 11 }}
+                tickFormatter={v => (v.length > 12 ? v.slice(0, 10) + '…' : v)}
+              />
+              <YAxis
+                stroke="#71717a"
+                tick={{ fill: '#a1a1aa', fontSize: 11 }}
+                allowDecimals={false}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: '#27272a',
+                  border: '1px solid #3f3f46',
+                  borderRadius: '6px',
+                }}
+                labelStyle={{ color: '#a1a1aa' }}
+                content={({ active, payload }) => {
+                  if (!active || !payload?.[0]) return null;
+                  const d = payload[0].payload as ChartDataPoint;
+                  return (
+                    <div className="rounded-md border border-zinc-600 bg-zinc-800 px-3 py-2 text-sm">
+                      <p className="font-medium text-zinc-100">{d.label}</p>
+                      <p className="mt-1 text-emerald-400">Total: {d.count}</p>
+                      {Object.entries(d.classifications)
+                        .sort((a, b) => b[1] - a[1])
+                        .map(([cls, cnt]) => (
+                          <p key={cls} className="text-xs text-zinc-400">
+                            {cls}: {cnt}
+                          </p>
+                        ))}
+                    </div>
+                  );
+                }}
+              />
+              {classificationFilter === 'all' && chartClassifications.length > 0 ? (
+                <>
+                  {chartClassifications.map((cls, i) => (
+                    <Line
+                      key={cls}
+                      type="monotone"
+                      dataKey={cls}
+                      stroke={COLORS[i % COLORS.length]}
+                      strokeWidth={2}
+                      dot={false}
+                      name={cls}
+                    />
+                  ))}
+                  <Legend
+                    wrapperStyle={{ fontSize: '12px' }}
+                    formatter={value => (
+                      <span className="text-zinc-400">{value}</span>
+                    )}
+                  />
+                </>
+              ) : (
+                <Line
+                  type="monotone"
+                  dataKey="count"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  dot={false}
+                />
+              )}
+            </LineChart>
+          </ResponsiveContainer>
         </div>
       ) : (
         <div className="h-72">

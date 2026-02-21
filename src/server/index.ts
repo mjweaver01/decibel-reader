@@ -41,6 +41,7 @@ const server = Bun.serve({
   development: true,
   routes: {
     '/': clientHtml,
+    '/analytics': clientHtml,
     '/api/config': {
       GET: () => Response.json(config),
       POST: async req => {
