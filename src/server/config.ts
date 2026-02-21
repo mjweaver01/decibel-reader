@@ -1,8 +1,9 @@
 import { join } from 'path';
 import type { AppConfig } from '@shared/types';
 import { DEFAULT_CONFIG } from '@shared/constants';
+import { PROJECT_ROOT } from '@shared/root';
 
-const CONFIG_FILE = join(import.meta.dir, '../../config.json');
+const CONFIG_FILE = join(PROJECT_ROOT, 'config.json');
 
 export let config: AppConfig = { ...DEFAULT_CONFIG };
 

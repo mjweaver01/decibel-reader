@@ -3,8 +3,9 @@ import { mkdir } from 'fs/promises';
 import { join } from 'path';
 import type { RecordingMetadata } from '@shared/types';
 import { logger } from '@shared/logger';
+import { PROJECT_ROOT } from '@shared/root';
 
-const RECORDINGS_DIR = join(import.meta.dir, '../../recordings');
+const RECORDINGS_DIR = join(PROJECT_ROOT, 'recordings');
 const DB_PATH = join(RECORDINGS_DIR, 'recordings.sqlite');
 const METADATA_FILE = join(RECORDINGS_DIR, 'index.json');
 
