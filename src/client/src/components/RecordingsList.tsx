@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { RecordingMetadata } from "../../../shared/types";
 
 const API_BASE = "/api";
@@ -10,6 +10,8 @@ interface RecordingsListProps {
 export function RecordingsList({ refreshTrigger = 0 }: RecordingsListProps) {
   const [recordings, setRecordings] = useState<RecordingMetadata[]>([]);
   const [loading, setLoading] = useState(true);
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const fetchRecordings = async () => {
     fetch(`${API_BASE}/recordings`)
@@ -47,6 +49,24 @@ export function RecordingsList({ refreshTrigger = 0 }: RecordingsListProps) {
   const recordingUrl = (r: RecordingMetadata) =>
     `${API_BASE}/recordings/${encodeURIComponent(r.id)}`;
 
+  const handlePlay = (r: RecordingMetadata) => {
+    const url = recordingUrl(r);
+    if (playingId === r.id) {
+      audioRef.current?.pause();
+      setPlayingId(null);
+      return;
+    }
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+    const audio = new Audio(url);
+    audioRef.current = audio;
+    audio.onended = () => setPlayingId(null);
+    audio.onerror = () => setPlayingId(null);
+    audio.play();
+    setPlayingId(r.id);
+  };
+
   return (
     <div className="rounded-lg bg-zinc-900 p-6">
       <h2 className="mb-4 text-lg font-semibold text-zinc-100">Recordings</h2>
@@ -73,15 +93,18 @@ export function RecordingsList({ refreshTrigger = 0 }: RecordingsListProps) {
                   )}
                 </p>
               </div>
-              <div className="ml-2 flex shrink-0 gap-2">
-                <a
-                  href={recordingUrl(r)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded px-2 py-1 text-sm text-emerald-400 hover:bg-emerald-500/20"
+              <div className="ml-2 flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handlePlay(r)}
+                  className={`rounded px-2 py-1 text-sm ${
+                    playingId === r.id
+                      ? "bg-emerald-600 text-white"
+                      : "text-emerald-400 hover:bg-emerald-500/20"
+                  }`}
                 >
-                  Play
-                </a>
+                  {playingId === r.id ? "Stop" : "Play"}
+                </button>
                 <a
                   href={recordingUrl(r)}
                   download={r.filename}

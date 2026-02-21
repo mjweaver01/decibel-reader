@@ -12,53 +12,18 @@ export interface AppConfig {
 
 export const DEFAULT_CONFIG: AppConfig = {
   thresholdDb: -30,
-  recordDurationSeconds: 0.5,
+  recordDurationSeconds: 0.1,
   captureIntervalMs: 500,
   soundTypes: ["Throat clearing"],
   classificationMinScore: 0.3,
 };
 
-/** Related YAMNet labels - when user selects one, we also accept the others from classifier */
-export const RELATED_SOUND_LABELS: Record<string, string[]> = {
-  Conversation: ["Speech", "Conversation"],
-  Speech: ["Speech", "Conversation"],
-  "Throat clearing": ["Throat clearing", "Cough", "Gargling", "Speech"],
-  Cough: ["Throat clearing", "Cough", "Speech"],
+/** YAMNet often returns "Speech" for throat clearing/cough. Map classifier output -> accepted when user selects these. */
+export const SOUND_LABEL_ALIASES: Record<string, string[]> = {
+  "Throat clearing": ["Speech"],
+  Cough: ["Speech"],
 };
 
-/** YAMNet sound classes for the UI (display_name from yamnet_class_map) */
-export const SOUND_TYPE_OPTIONS = [
-  "Throat clearing", // Default use case
-  "Speech",
-  "Dog",
-  "Bark",
-  "Cat",
-  "Meow",
-  "Door",
-  "Knock",
-  "Glass",
-  "Breaking",
-  "Baby cry, infant cry",
-  "Cough",
-  "Sneeze",
-  "Gargling",
-  "Siren",
-  "Alarm",
-  "Vehicle horn, car horn, honking",
-  "Car",
-  "Conversation",
-  "Walk, footsteps",
-  "Rain",
-  "Thunderstorm",
-  "Fire",
-  "Explosion",
-  "Gunshot, gunfire",
-  "Screaming",
-  "Laughter",
-  "Clapping",
-  "Cheering",
-  "Crowd",
-];
 
 export interface RecordingMetadata {
   id: string;

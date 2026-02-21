@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import type { AppConfig } from "../../../shared/types";
-import { SOUND_TYPE_OPTIONS } from "../../../shared/types";
+import { getYamnetLabels } from "../lib/yamnetLabels";
 import type { MediaDeviceInfo } from "../hooks/useAudioCapture";
+import { SoundTypeMultiselect } from "./SoundTypeMultiselect";
 
 interface ThresholdConfigProps {
   config: AppConfig;
@@ -19,6 +20,11 @@ export function ThresholdConfig({ config, onSave, devices }: ThresholdConfigProp
   );
   const [deviceId, setDeviceId] = useState(config.deviceId ?? "");
   const [saving, setSaving] = useState(false);
+  const [soundTypeOptions, setSoundTypeOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    getYamnetLabels().then(setSoundTypeOptions);
+  }, []);
 
   useEffect(() => {
     const clamped = Math.max(-60, Math.min(0, config.thresholdDb));
@@ -59,6 +65,10 @@ export function ThresholdConfig({ config, onSave, devices }: ThresholdConfigProp
     setSoundTypes((prev) =>
       prev.includes(name) ? prev.filter((s) => s !== name) : [...prev, name]
     );
+  };
+
+  const removeSoundType = (name: string) => {
+    setSoundTypes((prev) => prev.filter((s) => s !== name));
   };
 
   return (
@@ -117,28 +127,13 @@ export function ThresholdConfig({ config, onSave, devices }: ThresholdConfigProp
             Gate: only consider classification when sound exceeds this level
           </p>
         </div>
-        <div>
-          <label className="mb-2 block text-sm text-zinc-400">Sound types to record</label>
-          <p className="mb-2 text-xs text-zinc-500">
-            Leave empty to record any loud sound. Select specific types for sound-based detection.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {SOUND_TYPE_OPTIONS.map((name) => (
-              <button
-                key={name}
-                type="button"
-                onClick={() => toggleSoundType(name)}
-                className={`rounded-full px-3 py-1.5 text-sm transition-colors ${
-                  soundTypes.includes(name)
-                    ? "bg-emerald-600 text-white ring-1 ring-emerald-500"
-                    : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
-                }`}
-              >
-                {name}
-              </button>
-            ))}
-          </div>
-        </div>
+        <SoundTypeMultiselect
+          options={soundTypeOptions}
+          selected={soundTypes}
+          onToggle={toggleSoundType}
+          onRemove={removeSoundType}
+          placeholder="Search sound types..."
+        />
         {soundTypes.length > 0 && (
           <div>
             <label htmlFor="minScore" className="mb-1 block text-sm text-zinc-400">

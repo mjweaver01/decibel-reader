@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { RELATED_SOUND_LABELS } from "../../../shared/types";
+import { SOUND_LABEL_ALIASES } from "../../../shared/types";
 import { getClassifier, classifyAudio } from "../lib/soundClassifier";
 
 const MIN_DB = -60;
@@ -190,13 +190,11 @@ export function useAudioCapture({
           const label = topCategory.displayName || topCategory.categoryName;
           setLastDetection(`${label} (${(topCategory.score * 100).toFixed(0)}%)`);
 
-          const categoryLabel = (topCategory.categoryName || topCategory.displayName || "").toLowerCase();
+          const categoryLabel = topCategory.categoryName || topCategory.displayName || "";
           const match = soundTypesToCheck.some((selected) => {
-            const exact = topCategory.categoryName === selected || topCategory.displayName === selected;
-            if (exact) return true;
-            const related = RELATED_SOUND_LABELS[selected];
-            if (related?.some((r) => r.toLowerCase() === categoryLabel)) return true;
-            return topCategory.categoryName?.toLowerCase().includes(selected.toLowerCase()) ?? false;
+            if (categoryLabel === selected) return true;
+            const aliases = SOUND_LABEL_ALIASES[selected];
+            return aliases?.includes(categoryLabel) ?? false;
           });
           const scoreOk = topCategory.score >= classificationMinScore;
           const willRecord = match && scoreOk;
