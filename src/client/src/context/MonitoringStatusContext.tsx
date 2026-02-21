@@ -3,13 +3,13 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useMemo,
   useState,
   type ReactNode,
 } from 'react';
 import { DEFAULT_CONFIG, type AppConfig } from '../../../shared/types';
 import { API_BASE } from '../constants';
 import { useAudioCapture, type MediaDeviceInfo } from '../hooks/useAudioCapture';
+import { incrementRecordingsVersion } from '../store/recordingsVersion';
 
 const MIC_ENABLED_KEY = 'decibel-reader:micEnabled';
 
@@ -43,36 +43,30 @@ const defaultStatus: MonitoringStatus = {
   error: null,
 };
 
-/** High-frequency: dB, stream, etc. Updates ~60fps when monitoring. */
-interface CaptureContextValue {
+interface MonitoringContextValue {
+  status: MonitoringStatus;
+  setStatus: (s: MonitoringStatus) => void;
+  micEnabled: boolean;
+  setMicEnabled: (v: boolean) => void;
   dB: number;
   isRecording: boolean;
   error: string | null;
   stream: MediaStream | null;
   lastDetection: string | null;
   devices: MediaDeviceInfo[];
-}
-
-/** Low-frequency: config, recordingsVersion, etc. */
-interface ConfigContextValue {
-  status: MonitoringStatus;
-  setStatus: (s: MonitoringStatus) => void;
-  micEnabled: boolean;
-  setMicEnabled: (v: boolean) => void;
   config: AppConfig;
   setConfig: (c: AppConfig) => void;
   handleSaveConfig: (updates: Partial<AppConfig>) => Promise<void>;
-  recordingsVersion: number;
 }
 
-const CaptureContext = createContext<CaptureContextValue | null>(null);
-const ConfigContext = createContext<ConfigContextValue | null>(null);
+const MonitoringStatusContext = createContext<MonitoringContextValue | null>(
+  null
+);
 
 export function MonitoringStatusProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<MonitoringStatus>(defaultStatus);
   const [micEnabled, setMicEnabledState] = useState(getStoredMicEnabled);
   const [config, setConfig] = useState<AppConfig>(() => ({ ...DEFAULT_CONFIG }));
-  const [recordingsVersion, setRecordingsVersion] = useState(0);
 
   const setMicEnabled = useCallback((v: boolean) => {
     setMicEnabledState(v);
@@ -84,10 +78,7 @@ export function MonitoringStatusProvider({ children }: { children: ReactNode }) 
       thresholdDb: config.thresholdDb,
       recordDurationMs: config.recordDurationSeconds * 1000,
       enabled: micEnabled,
-      onRecordingUploaded: useCallback(
-        () => setRecordingsVersion(v => v + 1),
-        []
-      ),
+      onRecordingUploaded: incrementRecordingsVersion,
       soundTypes: config.soundTypes ?? [],
       classificationMinScore: config.classificationMinScore ?? 0.5,
       deviceId: config.deviceId || undefined,
@@ -127,58 +118,34 @@ export function MonitoringStatusProvider({ children }: { children: ReactNode }) 
     [micEnabled, restartMonitoring]
   );
 
-  const captureValue: CaptureContextValue = useMemo(
-    () => ({ dB, isRecording, error, stream, lastDetection, devices }),
-    [dB, isRecording, error, stream, lastDetection, devices]
-  );
-
-  const configValue: ConfigContextValue = useMemo(
-    () => ({
-      status,
-      setStatus,
-      micEnabled,
-      setMicEnabled,
-      config,
-      setConfig,
-      handleSaveConfig,
-      recordingsVersion,
-    }),
-    [
-      status,
-      micEnabled,
-      config,
-      recordingsVersion,
-      setStatus,
-      setMicEnabled,
-      handleSaveConfig,
-    ]
-  );
+  const value: MonitoringContextValue = {
+    status,
+    setStatus,
+    micEnabled,
+    setMicEnabled,
+    dB,
+    isRecording,
+    error,
+    stream,
+    lastDetection,
+    devices,
+    config,
+    setConfig,
+    handleSaveConfig,
+  };
 
   return (
-    <CaptureContext.Provider value={captureValue}>
-      <ConfigContext.Provider value={configValue}>
-        {children}
-      </ConfigContext.Provider>
-    </CaptureContext.Provider>
+    <MonitoringStatusContext.Provider value={value}>
+      {children}
+    </MonitoringStatusContext.Provider>
   );
 }
 
 export function useMonitoringStatus() {
-  const capture = useContext(CaptureContext);
-  const config = useContext(ConfigContext);
-  if (!capture || !config) {
-    throw new Error(
-      'useMonitoringStatus must be used within MonitoringStatusProvider'
-    );
-  }
-  return { ...capture, ...config };
-}
-
-export function useConfig() {
-  const ctx = useContext(ConfigContext);
+  const ctx = useContext(MonitoringStatusContext);
   if (!ctx) {
     throw new Error(
-      'useConfig must be used within MonitoringStatusProvider'
+      'useMonitoringStatus must be used within MonitoringStatusProvider'
     );
   }
   return ctx;

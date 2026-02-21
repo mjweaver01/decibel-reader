@@ -1,4 +1,5 @@
 import { useMonitoringStatus } from '../context/MonitoringStatusContext';
+import { useRecordingsVersion } from '../store/recordingsVersion';
 import { AudioVisualizer } from '../components/AudioVisualizer';
 import { RecordingsList } from '../components/RecordingsList';
 import { ThresholdConfig } from '../components/ThresholdConfig';
@@ -15,8 +16,8 @@ export function MonitorPage() {
     config,
     handleSaveConfig,
     devices,
-    recordingsVersion,
   } = useMonitoringStatus();
+  const recordingsVersion = useRecordingsVersion();
 
   if (!micEnabled) {
     return (
