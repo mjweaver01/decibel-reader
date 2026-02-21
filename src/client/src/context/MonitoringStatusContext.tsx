@@ -7,15 +7,10 @@ import {
   type ReactNode,
 } from 'react';
 import { DEFAULT_CONFIG, type AppConfig } from '../../../shared/types';
-import {
-  useAudioCapture,
-  type MediaDeviceInfo,
-} from '../hooks/useAudioCapture';
-
-export type { MediaDeviceInfo };
+import { API_BASE } from '../constants';
+import { useAudioCapture, type MediaDeviceInfo } from '../hooks/useAudioCapture';
 
 const MIC_ENABLED_KEY = 'decibel-reader:micEnabled';
-const API_BASE = '/api';
 
 function getStoredMicEnabled(): boolean {
   if (typeof sessionStorage === 'undefined') return false;

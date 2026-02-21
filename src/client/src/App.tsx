@@ -9,9 +9,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      <div
-        className={`mx-auto px-4 py-8 ${isAnalytics ? 'max-w-5xl' : 'max-w-2xl'}`}
-      >
+      <div className="mx-auto px-4 py-8 max-w-5xl">
         <Header />
 
         <main className="space-y-6">

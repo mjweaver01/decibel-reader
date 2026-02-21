@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { AppConfig } from '../../../shared/types';
 import { getYamnetLabels } from '../lib/yamnetLabels';
-import type { MediaDeviceInfo } from '../context/MonitoringStatusContext';
+import type { MediaDeviceInfo } from '../hooks/useAudioCapture';
 import { SoundTypeMultiselect } from './SoundTypeMultiselect';
 
 interface ThresholdConfigProps {

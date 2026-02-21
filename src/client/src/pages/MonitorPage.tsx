@@ -64,12 +64,14 @@ export function MonitorPage() {
           <span className="font-medium text-emerald-400">{lastDetection}</span>
         </div>
       )}
-      <ThresholdConfig
-        config={config}
-        onSave={handleSaveConfig}
-        devices={devices}
-      />
-      <RecordingsList refreshTrigger={recordingsVersion} />
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <ThresholdConfig
+          config={config}
+          onSave={handleSaveConfig}
+          devices={devices}
+        />
+        <RecordingsList refreshTrigger={recordingsVersion} />
+      </div>
     </>
   );
 }

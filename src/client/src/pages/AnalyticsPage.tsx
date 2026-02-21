@@ -13,8 +13,8 @@ import {
   Cell,
 } from 'recharts';
 import type { RecordingMetadata } from '../../../shared/types';
-
-const API_BASE = '/api';
+import { useMonitoringStatus } from '../context/MonitoringStatusContext';
+import { API_BASE } from '../constants';
 
 type TimeGrouping = 'minute' | 'hour' | 'day' | 'week';
 
@@ -84,6 +84,7 @@ interface ChartDataPoint {
 }
 
 export function AnalyticsPage() {
+  const { recordingsVersion } = useMonitoringStatus();
   const [recordings, setRecordings] = useState<RecordingMetadata[]>([]);
   const [loading, setLoading] = useState(true);
   const [grouping, setGrouping] = useState<TimeGrouping>('day');
@@ -105,7 +106,7 @@ export function AnalyticsPage() {
 
   useEffect(() => {
     fetchRecordings();
-  }, [fetchRecordings]);
+  }, [fetchRecordings, recordingsVersion]);
 
   const filteredRecordings = useMemo(() => {
     let list = recordings;
@@ -343,8 +344,8 @@ export function AnalyticsPage() {
           No data to display for the selected filters
         </div>
       ) : chartType === 'line' ? (
-        <div className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="h-72 min-h-[288px] w-full">
+          <ResponsiveContainer width="100%" height={288} minHeight={288}>
             <LineChart
               data={chartData}
               margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
@@ -420,8 +421,8 @@ export function AnalyticsPage() {
           </ResponsiveContainer>
         </div>
       ) : (
-        <div className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="h-72 min-h-[288px] w-full">
+          <ResponsiveContainer width="100%" height={288} minHeight={288}>
             <BarChart
               data={chartData}
               margin={{ top: 10, right: 10, left: 0, bottom: 0 }}

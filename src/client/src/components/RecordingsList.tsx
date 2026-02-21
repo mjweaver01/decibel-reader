@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RecordingMetadata } from '../../../shared/types';
+import { API_BASE } from '../constants';
 
-const API_BASE = '/api';
+const PAGE_SIZE = 15;
+const MAX_HEIGHT = 'min(400px, 50vh)';
 
 interface RecordingsListProps {
   refreshTrigger?: number;
@@ -11,23 +13,45 @@ export function RecordingsList({ refreshTrigger = 0 }: RecordingsListProps) {
   const [recordings, setRecordings] = useState<RecordingMetadata[]>([]);
   const [loading, setLoading] = useState(true);
   const [playingId, setPlayingId] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-  const fetchRecordings = async () => {
+  const fetchRecordings = useCallback(async () => {
     fetch(`${API_BASE}/recordings`)
       .then(r => r.json())
-      .then(setRecordings)
+      .then(data => {
+        setRecordings(data);
+        setVisibleCount(prev =>
+          prev === 0 ? PAGE_SIZE : Math.min(prev, data.length)
+        );
+      })
       .finally(() => setLoading(false));
-  };
+  }, []);
 
   useEffect(() => {
     fetchRecordings();
-  }, [refreshTrigger]);
+  }, [refreshTrigger, fetchRecordings]);
 
   useEffect(() => {
     const interval = setInterval(fetchRecordings, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchRecordings]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      entries => {
+        if (!entries[0]?.isIntersecting) return;
+        setVisibleCount(prev => Math.min(prev + PAGE_SIZE, recordings.length));
+      },
+      { rootMargin: '100px', threshold: 0 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [recordings.length]);
 
   const formatDate = (ts: string) => {
     try {
@@ -67,6 +91,9 @@ export function RecordingsList({ refreshTrigger = 0 }: RecordingsListProps) {
     setPlayingId(r.id);
   };
 
+  const visibleRecordings = recordings.slice(0, visibleCount);
+  const hasMore = visibleCount < recordings.length;
+
   return (
     <div className="rounded-lg bg-zinc-900 p-6">
       <h2 className="mb-4 text-lg font-semibold text-zinc-100">Recordings</h2>
@@ -76,8 +103,11 @@ export function RecordingsList({ refreshTrigger = 0 }: RecordingsListProps) {
           recordings will appear here.
         </p>
       ) : (
-        <div className="space-y-2">
-          {recordings.map(r => (
+        <div
+          className="space-y-2 overflow-y-auto"
+          style={{ maxHeight: MAX_HEIGHT }}
+        >
+          {visibleRecordings.map(r => (
             <div
               key={r.id}
               className="flex items-center justify-between rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2"
@@ -120,6 +150,14 @@ export function RecordingsList({ refreshTrigger = 0 }: RecordingsListProps) {
               </div>
             </div>
           ))}
+          {hasMore && (
+            <div
+              ref={sentinelRef}
+              className="py-2 text-center text-xs text-zinc-500"
+            >
+              Scroll for more...
+            </div>
+          )}
         </div>
       )}
     </div>
