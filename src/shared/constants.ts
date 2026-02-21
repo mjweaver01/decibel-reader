@@ -1,7 +1,7 @@
 import type { AppConfig } from './types';
 
 // Set to true to enable verbose [DecibelReader] debug logs
-export const DEBUG = true;
+export const DEBUG = process.env.NODE_ENV === 'development' || false;
 
 // API base URL
 export const API_BASE = '/api';

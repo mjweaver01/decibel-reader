@@ -4,8 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "bun run src/server/index.ts",
-    "build": "bun build --target=bun --production --sourcemap --outdir=dist ./src/server/index.ts",
-    "start": "bun run build && cd dist && bun run index.js",
+    "build": "bun build --target=bun --production --public-path=/ --outdir=client ./src/server/index.ts",
+    "start": "bun run build && cd client && bun run index.js",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
