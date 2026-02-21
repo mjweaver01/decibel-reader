@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "bun run --hot --watch src/server/index.ts",
-    "start": "bun run --production src/server/index.ts",
+    "start": "NODE_ENV=production bun run src/server/index.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
