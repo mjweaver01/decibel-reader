@@ -1,0 +1,108 @@
+/* Custom tooltips (use `data-title` instead of `title` to avoid native tooltips) */
+[data-title] {
+  position: relative;
+  /* Theme-aware tooltip tokens */
+  --tooltip-bg: #fff;
+  --tooltip-text: #111827;
+  --tooltip-border: rgba(17, 24, 39, 0.12);
+  --tooltip-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+/* Tooltip position overrides (opt-in per element) */
+[data-title][data-tooltip-position='top']::before {
+  top: auto;
+  bottom: calc(100% + 8px);
+}
+
+[data-title][data-tooltip-position='top']::before,
+[data-title][data-tooltip-position='top']::after {
+  /* Default animates slightly upward; for top-tooltips we animate slightly downward */
+  transform: translate(-50%, 2px);
+}
+
+/* Bottom-left tooltip positioning */
+[data-title][data-tooltip-position='bottom-left']::before {
+  left: 0;
+  transform: translate(0, -2px);
+}
+
+/* Bottom-right tooltip positioning */
+[data-title][data-tooltip-position='bottom-right']::before {
+  left: auto;
+  right: 0;
+  transform: translate(0, -2px);
+}
+
+/* Dark mode tooltip overrides */
+.dark [data-title] {
+  --tooltip-bg: var(--color-surface-secondary);
+  --tooltip-text: var(--color-text);
+  --tooltip-border: var(--color-surface-secondary);
+  --tooltip-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+}
+
+[data-title]::before,
+[data-title]::after {
+  position: absolute;
+  left: 50%;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease,
+    visibility 120ms ease;
+  transform: translate(-50%, -2px);
+  z-index: 50;
+}
+
+[data-title]::before {
+  content: attr(data-title);
+  top: calc(100% + 8px);
+  background: var(--tooltip-bg);
+  color: var(--tooltip-text);
+  border: 1px solid var(--tooltip-border);
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 6px 8px;
+  border-radius: 6px;
+  white-space: pre-line;
+  box-shadow: var(--tooltip-shadow);
+}
+
+/* Only show tooltips on devices with hover capability (not touch devices) */
+@media (hover: hover) and (pointer: fine) {
+  [data-title]:hover::before,
+  [data-title]:hover::after {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, 0);
+  }
+
+  /* Bottom-left and bottom-right use different transform */
+  [data-title][data-tooltip-position='bottom-left']:hover::before,
+  [data-title][data-tooltip-position='bottom-right']:hover::before {
+    transform: translate(0, 0);
+  }
+}
+
+/* Show tooltips on keyboard focus for accessibility */
+[data-title]:focus-visible::before,
+[data-title]:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+}
+
+/* Bottom-left and bottom-right focus states */
+[data-title][data-tooltip-position='bottom-left']:focus-visible::before,
+[data-title][data-tooltip-position='bottom-right']:focus-visible::before {
+  transform: translate(0, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-title]::before,
+  [data-title]::after {
+    transition: none;
+  }
+}

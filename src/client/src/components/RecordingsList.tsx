@@ -120,7 +120,7 @@ export function RecordingsList({ refreshTrigger = 0 }: RecordingsListProps) {
             <div
               key={r.id}
               className="flex items-center justify-between rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2"
-              title={
+              data-title={
                 r.classifications.length > 0
                   ? r.classifications
                       .map(c => `${c.label} (${(c.score * 100).toFixed(0)}%)`)
