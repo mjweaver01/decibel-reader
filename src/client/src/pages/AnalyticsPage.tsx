@@ -115,7 +115,7 @@ export function AnalyticsPage() {
   }, [fetchRecordings, recordingsVersion]);
 
   const filteredRecordings = useMemo(() => {
-    let list = recordings;
+    let list = recordings.filter(r => r.classifications.length > 0);
 
     const now = Date.now();
     const ms = {
@@ -129,12 +129,9 @@ export function AnalyticsPage() {
     }
 
     if (classificationFilter !== 'all') {
-      list = list.filter(r => {
-        if (classificationFilter === '(none)') {
-          return r.classifications.length === 0;
-        }
-        return r.classifications.some(c => c.label === classificationFilter);
-      });
+      list = list.filter(r =>
+        r.classifications.some(c => c.label === classificationFilter)
+      );
     }
 
     return list;
@@ -153,10 +150,7 @@ export function AnalyticsPage() {
       }
       const b = buckets.get(key)!;
       b.count += 1;
-      const labels =
-        r.classifications.length > 0
-          ? r.classifications.map(c => c.label)
-          : ['(none)'];
+      const labels = r.classifications.map(c => c.label);
       for (const cls of labels) {
         b.classifications[cls] = (b.classifications[cls] ?? 0) + 1;
       }
@@ -189,8 +183,6 @@ export function AnalyticsPage() {
     for (const r of recordings) {
       if (r.classifications.length > 0) {
         for (const c of r.classifications) set.add(c.label);
-      } else {
-        set.add('(none)');
       }
     }
     return Array.from(set).sort();
@@ -230,10 +222,7 @@ export function AnalyticsPage() {
   const pieData = useMemo(() => {
     const byClass: Record<string, number> = {};
     for (const r of filteredRecordings) {
-      const labels =
-        r.classifications.length > 0
-          ? r.classifications.map(c => c.label)
-          : ['(none)'];
+      const labels = r.classifications.map(c => c.label);
       for (const c of labels) {
         byClass[c] = (byClass[c] ?? 0) + 1;
       }
@@ -251,10 +240,7 @@ export function AnalyticsPage() {
     const total = filteredRecordings.length;
     const byClass: Record<string, number> = {};
     for (const r of filteredRecordings) {
-      const labels =
-        r.classifications.length > 0
-          ? r.classifications.map(c => c.label)
-          : ['(none)'];
+      const labels = r.classifications.map(c => c.label);
       for (const c of labels) {
         byClass[c] = (byClass[c] ?? 0) + 1;
       }

@@ -24,10 +24,13 @@ export function RecordingsList({ refreshTrigger = 0 }: RecordingsListProps) {
   const fetchRecordings = useCallback(async () => {
     fetch(`${API_BASE}/recordings`)
       .then(r => r.json())
-      .then(data => {
-        setRecordings(data);
+      .then((data: RecordingMetadata[]) => {
+        const withClassifications = data.filter(
+          r => r.classifications.length > 0
+        );
+        setRecordings(withClassifications);
         setVisibleCount(prev =>
-          prev === 0 ? PAGE_SIZE : Math.min(prev, data.length)
+          prev === 0 ? PAGE_SIZE : Math.min(prev, withClassifications.length)
         );
       })
       .finally(() => setLoading(false));
