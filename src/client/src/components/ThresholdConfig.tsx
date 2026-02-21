@@ -25,6 +25,15 @@ export function ThresholdConfig({
   const [soundTypes, setSoundTypes] = useState<string[]>(
     config.soundTypes ?? []
   );
+  const [notificationsEnabled, setNotificationsEnabled] = useState(
+    config.notificationsEnabled ?? false
+  );
+  const [notificationSounds, setNotificationSounds] = useState<string[]>(
+    config.notificationSounds ?? []
+  );
+  const [notificationError, setNotificationError] = useState<string | null>(
+    null
+  );
   const [classificationMinScore, setClassificationMinScore] = useState(
     config.classificationMinScore ?? 0.5
   );
@@ -44,6 +53,9 @@ export function ThresholdConfig({
     setSoundTypes(config.soundTypes ?? []);
     setClassificationMinScore(config.classificationMinScore ?? 0.5);
     setDeviceId(config.deviceId ?? '');
+    setNotificationsEnabled(config.notificationsEnabled ?? false);
+    setNotificationSounds(config.notificationSounds ?? []);
+    setNotificationError(null);
   }, [config]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -60,6 +72,8 @@ export function ThresholdConfig({
         soundTypes,
         classificationMinScore,
         deviceId: deviceId || undefined,
+        notificationsEnabled,
+        notificationSounds,
       });
     } finally {
       setSaving(false);
@@ -79,6 +93,44 @@ export function ThresholdConfig({
 
   const removeSoundType = (name: string) => {
     setSoundTypes(prev => prev.filter(s => s !== name));
+  };
+
+  const toggleNotificationSound = (name: string) => {
+    setNotificationSounds(prev =>
+      prev.includes(name) ? prev.filter(s => s !== name) : [...prev, name]
+    );
+  };
+
+  const removeNotificationSound = (name: string) => {
+    setNotificationSounds(prev => prev.filter(s => s !== name));
+  };
+
+  const handleNotificationsToggle = async (enabled: boolean) => {
+    setNotificationError(null);
+    if (enabled && typeof Notification !== 'undefined') {
+      if (Notification.permission === 'denied') {
+        setNotificationError(
+          'Notifications were previously blocked. Enable them in your browser settings.'
+        );
+        return;
+      }
+      if (Notification.permission === 'default') {
+        const perm = await Notification.requestPermission();
+        if (perm !== 'granted') {
+          setNotificationError(
+            perm === 'denied'
+              ? 'Notifications blocked. Enable them in browser settings to use this feature.'
+              : 'Could not request notification permission.'
+          );
+          return;
+        }
+      }
+    }
+    if (enabled && typeof Notification === 'undefined') {
+      setNotificationError('Notifications are not supported in this browser.');
+      return;
+    }
+    setNotificationsEnabled(enabled);
   };
 
   return (
@@ -202,6 +254,45 @@ export function ThresholdConfig({
           <p className="mt-1 text-xs text-zinc-500">
             Recording stops after sound stays below threshold for this long
           </p>
+        </div>
+        <div className="space-y-3 rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
+          <button
+            type="button"
+            onClick={() => handleNotificationsToggle(!notificationsEnabled)}
+            className="flex w-full cursor-pointer items-center justify-between rounded-md py-1 text-left transition-colors hover:bg-zinc-700/50"
+          >
+            <span className="text-sm font-medium text-zinc-100">
+              Push notifications
+            </span>
+            <span
+              className={`flex h-5 w-9 shrink-0 items-center rounded-full px-0.5 transition-colors ${
+                notificationsEnabled ? 'bg-emerald-600' : 'bg-zinc-600'
+              }`}
+            >
+              <span
+                className={`h-4 w-4 rounded-full bg-white transition-transform ${
+                  notificationsEnabled ? 'translate-x-4' : 'translate-x-0'
+                }`}
+              />
+            </span>
+          </button>
+          {notificationError && (
+            <p className="text-xs text-amber-400">{notificationError}</p>
+          )}
+          {notificationsEnabled && (
+            <>
+              <p className="text-xs text-zinc-500">
+                Get a browser notification when these sounds are detected
+              </p>
+              <SoundTypeMultiselect
+                options={soundTypeOptions}
+                selected={notificationSounds}
+                onToggle={toggleNotificationSound}
+                onRemove={removeNotificationSound}
+                placeholder="Search sounds to notify on..."
+              />
+            </>
+          )}
         </div>
         <button
           type="submit"

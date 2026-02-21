@@ -19,6 +19,13 @@ export async function loadConfig(): Promise<AppConfig> {
         typeof data?.classificationMinScore === 'number'
           ? data.classificationMinScore
           : DEFAULT_CONFIG.classificationMinScore,
+      notificationSounds: Array.isArray(data?.notificationSounds)
+        ? data.notificationSounds
+        : DEFAULT_CONFIG.notificationSounds,
+      notificationsEnabled:
+        typeof data?.notificationsEnabled === 'boolean'
+          ? data.notificationsEnabled
+          : DEFAULT_CONFIG.notificationsEnabled,
     };
   } catch {
     config = { ...DEFAULT_CONFIG };

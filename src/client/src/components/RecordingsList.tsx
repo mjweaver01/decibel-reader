@@ -3,7 +3,7 @@ import type { RecordingMetadata } from '@shared/types';
 import { API_BASE } from '@shared/constants';
 
 const PAGE_SIZE = 15;
-const MAX_HEIGHT = 'min(400px, 50vh)';
+const MAX_HEIGHT = 'min(525px, 50vh)';
 
 interface RecordingsListProps {
   refreshTrigger?: number;

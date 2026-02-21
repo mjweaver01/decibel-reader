@@ -18,6 +18,10 @@ export const configApi = {
     }
     if (Array.isArray(body.soundTypes)) updates.soundTypes = body.soundTypes;
     if (body.deviceId !== undefined) updates.deviceId = body.deviceId || undefined;
+    if (Array.isArray(body.notificationSounds))
+      updates.notificationSounds = body.notificationSounds;
+    if (typeof body.notificationsEnabled === 'boolean')
+      updates.notificationsEnabled = body.notificationsEnabled;
     Object.assign(config, updates);
     await saveConfig();
     return Response.json(config);

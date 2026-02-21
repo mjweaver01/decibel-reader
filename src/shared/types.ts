@@ -9,6 +9,10 @@ export interface AppConfig {
   classificationMinScore: number;
   /** Microphone deviceId. Empty = use default or first available. */
   deviceId?: string;
+  /** Show browser notification when these sounds are detected */
+  notificationSounds: string[];
+  /** Master toggle for push notifications */
+  notificationsEnabled: boolean;
 }
 
 export interface RecordingMetadata {

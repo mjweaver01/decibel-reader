@@ -20,6 +20,8 @@ export const DEFAULT_CONFIG: AppConfig = {
   captureIntervalMs: 250,
   soundTypes: ['Throat clearing', 'Cough', 'Burping, eructation'],
   classificationMinScore: 0.2,
+  notificationSounds: [],
+  notificationsEnabled: false,
 };
 
 // YAMNet

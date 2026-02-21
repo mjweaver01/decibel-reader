@@ -91,6 +91,8 @@ export function MonitoringStatusProvider({
       soundTypes: config.soundTypes ?? [],
       classificationMinScore: config.classificationMinScore ?? 0.5,
       deviceId: config.deviceId || undefined,
+      notificationSounds: config.notificationSounds ?? [],
+      notificationsEnabled: config.notificationsEnabled ?? false,
     });
 
   useEffect(() => {

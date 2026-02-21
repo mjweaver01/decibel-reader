@@ -3,6 +3,19 @@ import { API_BASE, MIN_DB, MAX_DB } from '@shared/constants';
 import { logger } from '@shared/logger';
 import { getClassifier, classifyAudio } from '../lib/soundClassifier';
 
+function showNotification(label: string, score: number): void {
+  if (typeof Notification === 'undefined') return;
+  if (Notification.permission !== 'granted') return;
+  try {
+    new Notification('Sound detected', {
+      body: `${label} (${(score * 100).toFixed(0)}% confidence)`,
+      icon: '/favicon.ico',
+    });
+  } catch {
+    // ignore
+  }
+}
+
 function computeDbFromAnalyser(
   analyser: AnalyserNode,
   dataArray: Uint8Array
@@ -47,6 +60,10 @@ export interface UseAudioCaptureOptions {
   classificationMinScore?: number;
   /** Specific microphone deviceId. If not set, uses default or first available. */
   deviceId?: string;
+  /** Sound types that trigger a browser notification when detected */
+  notificationSounds?: string[];
+  /** Master toggle for notifications */
+  notificationsEnabled?: boolean;
 }
 
 const MAX_RECORDING_MS = 60_000; // Safety cap: stop after 60s regardless
@@ -59,6 +76,8 @@ export function useAudioCapture({
   soundTypes = [],
   classificationMinScore = 0.5,
   deviceId,
+  notificationSounds = [],
+  notificationsEnabled = false,
 }: UseAudioCaptureOptions) {
   const [dB, setDb] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
@@ -230,6 +249,12 @@ export function useAudioCapture({
 
           const categoryLabel =
             topCategory.categoryName || topCategory.displayName || '';
+          if (
+            notificationsEnabled &&
+            notificationSounds.some(s => s === categoryLabel)
+          ) {
+            showNotification(label, topCategory.score);
+          }
           const matchedSelected = soundTypesToCheck.find(
             selected => categoryLabel === selected
           );
@@ -251,7 +276,7 @@ export function useAudioCapture({
         resolveClassification(null, recordAnyLoudSound);
       }
     },
-    [soundTypes, classificationMinScore]
+    [soundTypes, classificationMinScore, notificationSounds, notificationsEnabled]
   );
 
   useEffect(() => {
