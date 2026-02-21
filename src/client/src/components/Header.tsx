@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useMonitoringStatus } from '../context/MonitoringStatusContext';
+import { ANALYTICS_FILTERS_SESSION_KEY } from '../hooks/useAnalyticsFilters';
 import { MiniAudioVisualizer } from './MiniAudioVisualizer';
 import { StatusIndicator } from './StatusIndicator';
 
@@ -41,7 +42,18 @@ export function Header() {
             Monitor
           </NavLink>
           <NavLink
-            to="/analytics"
+            to={
+              isAnalyticsPage
+                ? `/analytics${location.search}`
+                : `/analytics${(() => {
+                    try {
+                      const s = sessionStorage.getItem(ANALYTICS_FILTERS_SESSION_KEY);
+                      return s ? `?${s}` : '';
+                    } catch {
+                      return '';
+                    }
+                  })()}`
+            }
             className={({ isActive }) =>
               `rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                 isActive

@@ -83,9 +83,7 @@ export function RecordingsList({
   };
 
   const title =
-    showCount && !loading
-      ? `Recordings (${recordings.length})`
-      : 'Recordings';
+    showCount && !loading ? `Recordings (${recordings.length})` : 'Recordings';
 
   if (loading) {
     return (
@@ -146,6 +144,7 @@ export function RecordingsList({
                       .join('\n')
                   : undefined
               }
+              data-tooltip-position="bottom-left"
             >
               <div className="min-w-0">
                 <p className="truncate text-sm text-zinc-100">

@@ -18,8 +18,11 @@ import type { RecordingMetadata } from '@shared/types';
 import { API_BASE } from '@shared/constants';
 import { useRecordingsVersion } from '../lib/recordingsVersion';
 import { RecordingsList } from '../components/RecordingsList';
-
-type TimeGrouping = 'minute' | 'hour' | 'day' | 'week';
+import { useAnalyticsFilters } from '../hooks/useAnalyticsFilters';
+import type {
+  ChartView,
+  TimeGrouping,
+} from '../hooks/useAnalyticsFilters';
 
 const COLORS = [
   '#10b981', // emerald-500
@@ -86,22 +89,28 @@ interface ChartDataPoint {
   classifications: Record<string, number>;
 }
 
-type ChartView = 'time' | 'distribution';
-
 export function AnalyticsPage() {
   const recordingsVersion = useRecordingsVersion();
+  const {
+    dateRange,
+    setDateRange,
+    grouping,
+    setGrouping,
+    classificationFilter,
+    setClassificationFilter,
+    chartView,
+    setChartView,
+    chartType,
+    setChartType,
+    stacked,
+    setStacked,
+    visibleClassifications,
+    setVisibleClassifications,
+    toggleVisibleClassification,
+  } = useAnalyticsFilters();
+
   const [recordings, setRecordings] = useState<RecordingMetadata[]>([]);
   const [loading, setLoading] = useState(true);
-  const [grouping, setGrouping] = useState<TimeGrouping>('day');
-  const [dateRange, setDateRange] = useState<'7' | '30' | '90' | 'all'>('30');
-  const [classificationFilter, setClassificationFilter] =
-    useState<string>('all');
-  const [chartView, setChartView] = useState<ChartView>('time');
-  const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
-  const [visibleClassifications, setVisibleClassifications] = useState<
-    Set<string>
-  >(new Set());
-  const [stacked, setStacked] = useState(true);
 
   const fetchRecordings = useCallback(async () => {
     try {
@@ -233,15 +242,6 @@ export function AnalyticsPage() {
     if (visibleClassifications.size === 0) return chartClassifications;
     return chartClassifications.filter(c => visibleClassifications.has(c));
   }, [chartClassifications, visibleClassifications]);
-
-  const toggleVisibleClassification = (cls: string) => {
-    setVisibleClassifications(prev => {
-      const next = new Set(prev);
-      if (next.has(cls)) next.delete(cls);
-      else next.add(cls);
-      return next;
-    });
-  };
 
   const pieData = useMemo(() => {
     const byClass: Record<string, number> = {};
