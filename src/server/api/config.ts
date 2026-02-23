@@ -13,7 +13,8 @@ export const configApi = {
     const updates: Partial<AppConfig> = {};
     const numKeys = [
       'thresholdDb',
-      'recordDurationSeconds',
+      'bufferBelowThresholdSeconds',
+      'preBufferSeconds',
       'captureIntervalMs',
       'classificationMinScore',
     ] as const satisfies readonly (keyof AppConfig)[];

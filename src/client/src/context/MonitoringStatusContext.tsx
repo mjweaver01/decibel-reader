@@ -86,7 +86,8 @@ export function MonitoringStatusProvider({
   const { dB, isRecording, error, stream, lastDetection, devices } =
     useAudioCapture({
       thresholdDb: config.thresholdDb,
-      bufferMs: config.recordDurationSeconds * 1000,
+      bufferMs: config.bufferBelowThresholdSeconds * 1000,
+      preBufferMs: (config.preBufferSeconds ?? 2) * 1000,
       enabled: micEnabled,
       onRecordingUploaded: incrementRecordingsVersion,
       soundTypes: config.soundTypes ?? [],

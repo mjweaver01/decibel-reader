@@ -15,23 +15,23 @@ export function Configuration({ config, onSave, devices }: ConfigurationProps) {
   const [thresholdInput, setThresholdInput] = useState(
     String(Math.max(-60, Math.min(0, config.thresholdDb)))
   );
-  const [recordDurationSeconds, setRecordDurationSeconds] = useState(
-    config.recordDurationSeconds
+  const [bufferBelowThresholdSeconds, setBufferBelowThresholdSeconds] =
+    useState(config.bufferBelowThresholdSeconds ?? 1);
+  const [preBufferSeconds, setPreBufferSeconds] = useState(
+    config.preBufferSeconds
   );
-  const [soundTypes, setSoundTypes] = useState<string[]>(
-    config.soundTypes ?? []
-  );
+  const [soundTypes, setSoundTypes] = useState<string[]>(config.soundTypes);
   const [notificationsEnabled, setNotificationsEnabled] = useState(
-    config.notificationsEnabled ?? false
+    config.notificationsEnabled
   );
   const [notificationSounds, setNotificationSounds] = useState<string[]>(
-    config.notificationSounds ?? []
+    config.notificationSounds
   );
   const [notificationError, setNotificationError] = useState<string | null>(
     null
   );
   const [classificationMinScore, setClassificationMinScore] = useState(
-    config.classificationMinScore ?? 0.5
+    config.classificationMinScore
   );
   const [deviceId, setDeviceId] = useState(config.deviceId ?? '');
   const [saving, setSaving] = useState(false);
@@ -45,12 +45,13 @@ export function Configuration({ config, onSave, devices }: ConfigurationProps) {
     const clamped = Math.max(-60, Math.min(0, config.thresholdDb));
     setThresholdDb(clamped);
     setThresholdInput(String(clamped));
-    setRecordDurationSeconds(config.recordDurationSeconds);
-    setSoundTypes(config.soundTypes ?? []);
-    setClassificationMinScore(config.classificationMinScore ?? 0.5);
+    setBufferBelowThresholdSeconds(config.bufferBelowThresholdSeconds ?? 1);
+    setPreBufferSeconds(config.preBufferSeconds);
+    setSoundTypes(config.soundTypes);
+    setClassificationMinScore(config.classificationMinScore);
     setDeviceId(config.deviceId ?? '');
-    setNotificationsEnabled(config.notificationsEnabled ?? false);
-    setNotificationSounds(config.notificationSounds ?? []);
+    setNotificationsEnabled(config.notificationsEnabled);
+    setNotificationSounds(config.notificationSounds);
     setNotificationError(null);
   }, [config]);
 
@@ -64,7 +65,8 @@ export function Configuration({ config, onSave, devices }: ConfigurationProps) {
     try {
       await onSave({
         thresholdDb: parsedThreshold,
-        recordDurationSeconds,
+        bufferBelowThresholdSeconds,
+        preBufferSeconds,
         soundTypes,
         classificationMinScore,
         deviceId: deviceId || undefined,
@@ -233,8 +235,10 @@ export function Configuration({ config, onSave, devices }: ConfigurationProps) {
           </label>
           <select
             id="duration"
-            value={recordDurationSeconds}
-            onChange={e => setRecordDurationSeconds(Number(e.target.value))}
+            value={bufferBelowThresholdSeconds}
+            onChange={e =>
+              setBufferBelowThresholdSeconds(Number(e.target.value))
+            }
             className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           >
             <option value={0.1}>0.1 seconds</option>
@@ -252,6 +256,31 @@ export function Configuration({ config, onSave, devices }: ConfigurationProps) {
           </select>
           <p className="mt-1 text-xs text-zinc-500">
             Recording stops after sound stays below threshold for this long
+          </p>
+        </div>
+        <div>
+          <label
+            htmlFor="preBuffer"
+            className="mb-1 block text-sm text-zinc-400"
+          >
+            Pre-buffer before trigger (seconds)
+          </label>
+          <select
+            id="preBuffer"
+            value={preBufferSeconds}
+            onChange={e => setPreBufferSeconds(Number(e.target.value))}
+            className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          >
+            <option value={0}>None</option>
+            <option value={0.5}>0.5 seconds</option>
+            <option value={1}>1 second</option>
+            <option value={2}>2 seconds</option>
+            <option value={3}>3 seconds</option>
+            <option value={5}>5 seconds</option>
+          </select>
+          <p className="mt-1 text-xs text-zinc-500">
+            Capture audio from before the decibel trigger so you can hear what
+            led up to the sound
           </p>
         </div>
         <div className="space-y-3 rounded-lg border border-zinc-700 bg-zinc-800/50 p-2">

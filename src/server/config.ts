@@ -13,6 +13,14 @@ function parseConfig(data: unknown): AppConfig {
   return {
     ...DEFAULT_CONFIG,
     ...d,
+    bufferBelowThresholdSeconds:
+      typeof d?.bufferBelowThresholdSeconds === 'number'
+        ? d.bufferBelowThresholdSeconds
+        : DEFAULT_CONFIG.bufferBelowThresholdSeconds,
+    preBufferSeconds:
+      typeof d?.preBufferSeconds === 'number'
+        ? d.preBufferSeconds
+        : DEFAULT_CONFIG.preBufferSeconds,
     soundTypes: Array.isArray(d?.soundTypes)
       ? d.soundTypes
       : DEFAULT_CONFIG.soundTypes,
@@ -32,7 +40,8 @@ function parseConfig(data: unknown): AppConfig {
 
 const APP_CONFIG_KEYS = [
   'thresholdDb',
-  'recordDurationSeconds',
+  'bufferBelowThresholdSeconds',
+  'preBufferSeconds',
   'soundTypes',
   'deviceId',
 ] as const;

@@ -1,7 +1,9 @@
 export interface AppConfig {
   thresholdDb: number;
   /** Seconds sound must stay below threshold before stopping recording */
-  recordDurationSeconds: number;
+  bufferBelowThresholdSeconds: number;
+  /** Seconds of audio to capture before the decibel trigger (pre-roll buffer) */
+  preBufferSeconds: number;
   captureIntervalMs: number;
   /** If empty, record on any loud sound. If set, only record when classification matches. */
   soundTypes: string[];

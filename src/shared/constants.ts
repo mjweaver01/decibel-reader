@@ -16,7 +16,8 @@ export const BUFFER_SIZE = 72000;
 // Default config
 export const DEFAULT_CONFIG: AppConfig = {
   thresholdDb: -35,
-  recordDurationSeconds: 1,
+  bufferBelowThresholdSeconds: 1,
+  preBufferSeconds: 0.5,
   captureIntervalMs: 250,
   soundTypes: [
     'Throat clearing',

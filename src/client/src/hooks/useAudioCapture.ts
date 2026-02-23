@@ -53,6 +53,8 @@ export interface UseAudioCaptureOptions {
   thresholdDb: number;
   /** How long (ms) sound must stay below threshold before stopping the recording */
   bufferMs: number;
+  /** How long (ms) of audio to capture before the decibel trigger (pre-roll buffer) */
+  preBufferMs?: number;
   enabled: boolean;
   onRecordingUploaded?: () => void;
   /** If empty, record on any loud sound. If set, only record when classification matches. */
@@ -68,9 +70,12 @@ export interface UseAudioCaptureOptions {
 
 const MAX_RECORDING_MS = 60_000; // Safety cap: stop after 60s regardless
 
+const TIMESLICE_MS = 100;
+
 export function useAudioCapture({
   thresholdDb,
   bufferMs,
+  preBufferMs = 0,
   enabled,
   onRecordingUploaded,
   soundTypes = [],
@@ -87,6 +92,15 @@ export function useAudioCapture({
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
+  const preBufferRecorderRef = useRef<MediaRecorder | null>(null);
+  /** First chunk contains WebM init segment - must never be evicted */
+  const preBufferFirstChunkRef = useRef<Blob | null>(null);
+  const preBufferChunksRef = useRef<Blob[]>([]);
+  const preBufferMaxChunksRef = useRef(0);
+  const recordingChunksRef = useRef<Blob[]>([]);
+  const preBufferSnapshotRef = useRef<Blob[] | null>(null);
+  const stopRequestedRef = useRef(false);
+  const cancelledRef = useRef(false);
   const lastTriggerRef = useRef(0);
   const currentDbRef = useRef(0);
   const belowThresholdSinceRef = useRef<number | null>(null);
@@ -130,6 +144,164 @@ export function useAudioCapture({
     []
   );
 
+  const peakDbForRecordingRef = useRef(0);
+
+  const processAndMaybeUpload = useCallback(
+    async (
+      blob: Blob,
+      peakDb: number,
+      durationSeconds: number
+    ) => {
+      if (blob.size === 0) return;
+
+      logger.log(
+        '[DecibelReader] Recording stopped:',
+        durationSeconds.toFixed(1),
+        's,',
+        (blob.size / 1024).toFixed(1),
+        'KB'
+      );
+
+      let classifications: { label: string; score: number }[] = [];
+      let shouldUpload = true;
+
+      try {
+        logger.log('[DecibelReader] Decoding audio...');
+        const arrayBuffer = await blob.arrayBuffer();
+        const ctx = new AudioContext();
+        const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+        const channelData = new Float32Array(audioBuffer.getChannelData(0));
+        ctx.close();
+        const sr = audioBuffer.sampleRate;
+        const resampled = resampleTo16k(channelData, sr);
+        logger.log(
+          '[DecibelReader] Decoded:',
+          channelData.length,
+          'samples @',
+          sr,
+          'Hz ->',
+          resampled.length,
+          '@ 16kHz'
+        );
+
+        if (resampled.length >= 15000) {
+          logger.log('[DecibelReader] Classifying...');
+          const classifier = await getClassifier({
+            scoreThreshold: 0.05,
+            maxResults: 5,
+          });
+          const results = classifyAudio(classifier, resampled, 16000);
+          const categories =
+            results[0]?.classifications?.[0]?.categories ?? [];
+
+          classifications = categories.map(c => ({
+            label: c.categoryName || c.displayName || '',
+            score: c.score ?? 0,
+          }));
+
+          const topCategory = categories[0];
+          const minScore = classificationMinScoreRef.current;
+          const soundTypesToCheck =
+            soundTypesRef.current.filter(s => s.trim());
+          const recordAnyLoudSound = soundTypesToCheck.length === 0;
+
+          if (topCategory) {
+            const topLabel =
+              topCategory.displayName || topCategory.categoryName;
+            setLastDetection(
+              `${topLabel} (${(topCategory.score * 100).toFixed(0)}%)`
+            );
+            logger.log(
+              '[DecibelReader] Classifications:',
+              classifications.map(c => `${c.label}:${(c.score * 100).toFixed(0)}%`).join(', ')
+            );
+
+            if (notificationSoundsRef.current.length > 0) {
+              const notifyMatch = classifications.find(
+                c =>
+                  notificationSoundsRef.current.includes(c.label) &&
+                  c.score >= minScore
+              );
+              if (
+                notificationsEnabledRef.current &&
+                notifyMatch
+              ) {
+                showNotification(notifyMatch.label, notifyMatch.score);
+              }
+            }
+
+            const matchingSelected = classifications.find(
+              c =>
+                soundTypesToCheck.includes(c.label) && c.score >= minScore
+            );
+            const anyAboveMinScore = classifications.some(
+              c => c.score >= minScore
+            );
+            shouldUpload = recordAnyLoudSound
+              ? anyAboveMinScore
+              : !!matchingSelected;
+            logger.log(
+              '[DecibelReader] shouldUpload:',
+              shouldUpload,
+              '(match:',
+              !!matchingSelected,
+              'anyAboveMinScore:',
+              anyAboveMinScore,
+              ')'
+            );
+          } else {
+            logger.log('[DecibelReader] No classification result');
+            setLastDetection(null);
+            shouldUpload = recordAnyLoudSound;
+          }
+        } else {
+          logger.log(
+            '[DecibelReader] Audio too short for classification (',
+            resampled.length,
+            '< 15000)'
+          );
+          const soundTypesToCheck =
+            soundTypesRef.current.filter(s => s.trim());
+          shouldUpload = soundTypesToCheck.length === 0;
+        }
+      } catch (err) {
+        logger.error('[DecibelReader] Classification failed:', err);
+        setLastDetection(null);
+        const soundTypesToCheck =
+          soundTypesRef.current.filter(s => s.trim());
+        shouldUpload = soundTypesToCheck.length === 0;
+      }
+
+      if (!shouldUpload) {
+        logger.log('[DecibelReader] Skipping upload (filtered out)');
+        return;
+      }
+
+      try {
+        logger.log(
+          '[DecibelReader] Uploading:',
+          classifications.length,
+          'classifications'
+        );
+        await uploadRecording(
+          blob,
+          peakDb,
+          durationSeconds,
+          classifications
+        );
+        logger.log('[DecibelReader] Upload complete');
+        onRecordingUploaded?.();
+      } catch (err) {
+        logger.error('[DecibelReader] Upload failed:', err);
+        setError('Failed to save recording');
+      }
+    },
+    [uploadRecording, onRecordingUploaded]
+  );
+
+  const processAndMaybeUploadRef = useRef(processAndMaybeUpload);
+  processAndMaybeUploadRef.current = processAndMaybeUpload;
+
   const startRecordingRef = useRef<(peakDb: number) => void>(() => {});
   const startRecording = useCallback(
     (peakDb: number) => {
@@ -141,177 +313,51 @@ export function useAudioCapture({
         return;
       }
 
+      peakDbForRecordingRef.current = peakDb;
       setIsRecording(true);
-      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-      recorderRef.current = recorder;
-      const chunks: Blob[] = [];
-
-      recorder.ondataavailable = e => {
-        if (e.data.size) chunks.push(e.data);
-      };
-
-      recorder.onstop = async () => {
-        recorderRef.current = null;
-        belowThresholdSinceRef.current = null;
-        setIsRecording(false);
-        const blob = new Blob(chunks, { type: 'audio/webm' });
-
-        if (blob.size === 0) return;
-
-        const durationSeconds =
-          (Date.now() - recordingStartTimeRef.current) / 1000;
-        logger.log(
-          '[DecibelReader] Recording stopped:',
-          durationSeconds.toFixed(1),
-          's,',
-          (blob.size / 1024).toFixed(1),
-          'KB'
-        );
-
-        let classifications: { label: string; score: number }[] = [];
-        let shouldUpload = true;
-
-        try {
-          logger.log('[DecibelReader] Decoding audio...');
-          const arrayBuffer = await blob.arrayBuffer();
-          const ctx = new AudioContext();
-          const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-          const channelData = new Float32Array(audioBuffer.getChannelData(0));
-          ctx.close();
-          const sr = audioBuffer.sampleRate;
-          const resampled = resampleTo16k(channelData, sr);
-          logger.log(
-            '[DecibelReader] Decoded:',
-            channelData.length,
-            'samples @',
-            sr,
-            'Hz ->',
-            resampled.length,
-            '@ 16kHz'
-          );
-
-          if (resampled.length >= 15000) {
-            logger.log('[DecibelReader] Classifying...');
-            const classifier = await getClassifier({
-              scoreThreshold: 0.05,
-              maxResults: 5,
-            });
-            const results = classifyAudio(classifier, resampled, 16000);
-            const categories =
-              results[0]?.classifications?.[0]?.categories ?? [];
-
-            classifications = categories.map(c => ({
-              label: c.categoryName || c.displayName || '',
-              score: c.score ?? 0,
-            }));
-
-            const topCategory = categories[0];
-            const minScore = classificationMinScoreRef.current;
-            const soundTypesToCheck =
-              soundTypesRef.current.filter(s => s.trim());
-            const recordAnyLoudSound = soundTypesToCheck.length === 0;
-
-            if (topCategory) {
-              const topLabel =
-                topCategory.displayName || topCategory.categoryName;
-              setLastDetection(
-                `${topLabel} (${(topCategory.score * 100).toFixed(0)}%)`
-              );
-              logger.log(
-                '[DecibelReader] Classifications:',
-                classifications.map(c => `${c.label}:${(c.score * 100).toFixed(0)}%`).join(', ')
-              );
-
-              // Notifications: any classification matching notificationSounds
-              if (notificationSoundsRef.current.length > 0) {
-                const notifyMatch = classifications.find(
-                  c =>
-                    notificationSoundsRef.current.includes(c.label) &&
-                    c.score >= minScore
-                );
-                if (
-                  notificationsEnabledRef.current &&
-                  notifyMatch
-                ) {
-                  showNotification(notifyMatch.label, notifyMatch.score);
-                }
-              }
-
-              // Upload: recordAnyLoudSound ? any above minScore : any matches soundTypes with score >= minScore
-              const matchingSelected = classifications.find(
-                c =>
-                  soundTypesToCheck.includes(c.label) && c.score >= minScore
-              );
-              const anyAboveMinScore = classifications.some(
-                c => c.score >= minScore
-              );
-              shouldUpload = recordAnyLoudSound
-                ? anyAboveMinScore
-                : !!matchingSelected;
-              logger.log(
-                '[DecibelReader] shouldUpload:',
-                shouldUpload,
-                '(match:',
-                !!matchingSelected,
-                'anyAboveMinScore:',
-                anyAboveMinScore,
-                ')'
-              );
-            } else {
-              logger.log('[DecibelReader] No classification result');
-              setLastDetection(null);
-              shouldUpload = recordAnyLoudSound;
-            }
-          } else {
-            logger.log(
-              '[DecibelReader] Audio too short for classification (',
-              resampled.length,
-              '< 15000)'
-            );
-            const soundTypesToCheck =
-              soundTypesRef.current.filter(s => s.trim());
-            shouldUpload = soundTypesToCheck.length === 0;
-          }
-        } catch (err) {
-          logger.error('[DecibelReader] Classification failed:', err);
-          setLastDetection(null);
-          const soundTypesToCheck =
-            soundTypesRef.current.filter(s => s.trim());
-          shouldUpload = soundTypesToCheck.length === 0;
-        }
-
-        if (!shouldUpload) {
-          logger.log('[DecibelReader] Skipping upload (filtered out)');
-          return;
-        }
-
-        try {
-          logger.log(
-            '[DecibelReader] Uploading:',
-            classifications.length,
-            'classifications'
-          );
-          await uploadRecording(
-            blob,
-            peakDb,
-            durationSeconds,
-            classifications
-          );
-          logger.log('[DecibelReader] Upload complete');
-          onRecordingUploaded?.();
-        } catch (err) {
-          logger.error('[DecibelReader] Upload failed:', err);
-          setError('Failed to save recording');
-        }
-      };
-
-      recorder.start(100);
-      recordingStartTimeRef.current = Date.now();
-      logger.log('[DecibelReader] Recording started');
       belowThresholdSinceRef.current = null;
-      // Stop is handled dynamically in the tick loop when sound stays below threshold for bufferMs
+
+      if (preBufferMs > 0) {
+        // Pre-buffer mode: snapshot the circular buffer and start collecting
+        preBufferSnapshotRef.current = [...preBufferChunksRef.current];
+        recordingChunksRef.current = [];
+        stopRequestedRef.current = false;
+        recordingStartTimeRef.current = Date.now();
+        logger.log(
+          '[DecibelReader] Recording started (with',
+          preBufferSnapshotRef.current.length * TIMESLICE_MS,
+          'ms pre-buffer)'
+        );
+      } else {
+        // Legacy mode: start MediaRecorder on trigger
+        const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        recorderRef.current = recorder;
+        const chunks: Blob[] = [];
+
+        recorder.ondataavailable = e => {
+          if (e.data.size) chunks.push(e.data);
+        };
+
+        recorder.onstop = async () => {
+          recorderRef.current = null;
+          belowThresholdSinceRef.current = null;
+          setIsRecording(false);
+          const blob = new Blob(chunks, { type: 'audio/webm' });
+          const durationSeconds =
+            (Date.now() - recordingStartTimeRef.current) / 1000;
+          void processAndMaybeUploadRef.current(
+            blob,
+            peakDbForRecordingRef.current,
+            durationSeconds
+          );
+        };
+
+        recorder.start(TIMESLICE_MS);
+        recordingStartTimeRef.current = Date.now();
+        logger.log('[DecibelReader] Recording started');
+      }
     },
-    [isRecording, uploadRecording, onRecordingUploaded]
+    [isRecording, preBufferMs, processAndMaybeUpload]
   );
   startRecordingRef.current = startRecording;
 
@@ -328,6 +374,7 @@ export function useAudioCapture({
     let scriptProcessor: ScriptProcessorNode | null = null;
 
     const run = async () => {
+      cancelledRef.current = false;
       try {
         const getStream = async (
           constraints: MediaStreamConstraints
@@ -397,9 +444,75 @@ export function useAudioCapture({
           thresholdDb,
           cooldownMs,
           bufferMs,
+          preBufferMs,
           soundTypes,
           classificationMinScore,
         });
+
+        // Start continuous pre-buffer recorder when pre-buffer is enabled
+        if (preBufferMs > 0) {
+          const maxChunks = Math.ceil(preBufferMs / TIMESLICE_MS);
+          preBufferMaxChunksRef.current = maxChunks;
+          preBufferChunksRef.current = [];
+          const preRecorder = new MediaRecorder(stream, {
+            mimeType: 'audio/webm',
+          });
+          preRecorder.ondataavailable = e => {
+            if (!e.data.size || cancelledRef.current) return;
+            if (stopRequestedRef.current) {
+              const snapshot = preBufferSnapshotRef.current;
+              const recording = recordingChunksRef.current;
+              const firstChunk = preBufferFirstChunkRef.current;
+              if (snapshot !== null && firstChunk) {
+                const allChunks = [
+                  firstChunk,
+                  ...snapshot,
+                  ...recording,
+                  e.data,
+                ];
+                const blob = new Blob(allChunks, { type: 'audio/webm' });
+                const durationSeconds =
+                  (allChunks.length * TIMESLICE_MS) / 1000;
+                preBufferSnapshotRef.current = null;
+                stopRequestedRef.current = false;
+                belowThresholdSinceRef.current = null;
+                setIsRecording(false);
+                void processAndMaybeUploadRef.current(
+                  blob,
+                  peakDbForRecordingRef.current,
+                  durationSeconds
+                );
+              } else if (snapshot !== null) {
+                logger.log(
+                  '[DecibelReader] Pre-buffer: missing init chunk, skipping'
+                );
+                preBufferSnapshotRef.current = null;
+                stopRequestedRef.current = false;
+                belowThresholdSinceRef.current = null;
+                setIsRecording(false);
+              }
+            } else if (preBufferSnapshotRef.current !== null) {
+              recordingChunksRef.current.push(e.data);
+            } else {
+              if (!preBufferFirstChunkRef.current) {
+                preBufferFirstChunkRef.current = e.data;
+              } else {
+                const chunks = preBufferChunksRef.current;
+                chunks.push(e.data);
+                if (chunks.length > preBufferMaxChunksRef.current) {
+                  chunks.shift();
+                }
+              }
+            }
+          };
+          preRecorder.start(TIMESLICE_MS);
+          preBufferRecorderRef.current = preRecorder;
+          logger.log(
+            '[DecibelReader] Pre-buffer recorder started:',
+            preBufferMs,
+            'ms'
+          );
+        }
 
         const ctx = new AudioContext();
         sampleRateRef.current = ctx.sampleRate;
@@ -449,15 +562,25 @@ export function useAudioCapture({
 
           const now = Date.now();
           const recorder = recorderRef.current;
+          const usingPreBuffer =
+            preBufferMs > 0 && preBufferSnapshotRef.current !== null;
 
           // Dynamic stop: when recording, check if we should stop
-          if (recorder && recorder.state === 'recording') {
+          if (
+            (recorder?.state === 'recording' || usingPreBuffer) &&
+            !stopRequestedRef.current
+          ) {
             const recordingElapsed = now - recordingStartTimeRef.current;
             if (recordingElapsed >= MAX_RECORDING_MS) {
               logger.log(
                 '[DecibelReader] Max recording time reached, stopping'
               );
-              recorder.stop();
+              if (usingPreBuffer) {
+                stopRequestedRef.current = true;
+                preBufferRecorderRef.current?.requestData();
+              } else {
+                recorder?.stop();
+              }
             } else if (currentDb < thresholdDb) {
               if (belowThresholdSinceRef.current === null) {
                 belowThresholdSinceRef.current = now;
@@ -469,7 +592,12 @@ export function useAudioCapture({
                   bufferMs,
                   'ms, stopping recording'
                 );
-                recorder.stop();
+                if (usingPreBuffer) {
+                  stopRequestedRef.current = true;
+                  preBufferRecorderRef.current?.requestData();
+                } else {
+                  recorder?.stop();
+                }
               }
             } else {
               belowThresholdSinceRef.current = null;
@@ -514,8 +642,13 @@ export function useAudioCapture({
     run();
     return () => {
       cancelled = true;
+      cancelledRef.current = true;
       cancelAnimationFrame(animationId!);
       scriptProcessor?.disconnect();
+      if (preBufferRecorderRef.current?.state === 'recording') {
+        preBufferRecorderRef.current.stop();
+      }
+      preBufferRecorderRef.current = null;
       streamRef.current?.getTracks().forEach(t => t.stop());
       streamRef.current = null;
       setStream(null);
@@ -524,6 +657,7 @@ export function useAudioCapture({
     enabled,
     thresholdDb,
     bufferMs,
+    preBufferMs,
     cooldownMs,
     runClassificationAndMaybeRecord,
     deviceId,
