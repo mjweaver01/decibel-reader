@@ -22,12 +22,15 @@ export function RecordingsList({
 }: RecordingsListProps) {
   const isMobile = useIsMobile();
 
-  const [recordings, setRecordings] = useState<RecordingMetadata[]>([]);
+  const [localRecordings, setLocalRecordings] = useState<RecordingMetadata[]>([]);
   const [loading, setLoading] = useState(true);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  const recordings =
+    recordingsProp !== undefined ? recordingsProp : localRecordings;
 
   const fetchRecordings = useCallback(async () => {
     fetch(`${API_BASE}/recordings`)
@@ -36,7 +39,7 @@ export function RecordingsList({
         const withClassifications = data.filter(
           r => r.classifications.length > 0
         );
-        setRecordings(withClassifications);
+        setLocalRecordings(withClassifications);
         setVisibleCount(prev =>
           prev === 0 ? PAGE_SIZE : Math.min(prev, withClassifications.length)
         );
@@ -46,7 +49,6 @@ export function RecordingsList({
 
   useEffect(() => {
     if (recordingsProp !== undefined) {
-      setRecordings(recordingsProp);
       setLoading(false);
       return;
     }

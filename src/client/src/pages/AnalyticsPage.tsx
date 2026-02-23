@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useDeferredValue,
+  useMemo,
+  useState,
+  useTransition,
+} from 'react';
 import {
   Bar,
   BarChart,
@@ -23,6 +30,8 @@ import type {
   ChartView,
   TimeGrouping,
 } from '../hooks/useAnalyticsFilters';
+
+const MAX_CHART_POINTS = 300;
 
 const COLORS = [
   '#10b981', // emerald-500
@@ -111,12 +120,16 @@ export function AnalyticsPage() {
 
   const [recordings, setRecordings] = useState<RecordingMetadata[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
+  const deferredRecordings = useDeferredValue(recordings);
 
   const fetchRecordings = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/recordings`);
       const data = await res.json();
-      setRecordings(data);
+      startTransition(() => {
+        setRecordings(data);
+      });
     } finally {
       setLoading(false);
     }
@@ -127,7 +140,7 @@ export function AnalyticsPage() {
   }, [fetchRecordings, recordingsVersion]);
 
   const filteredRecordings = useMemo(() => {
-    let list = recordings.filter(r => r.classifications.length > 0);
+    let list = deferredRecordings.filter(r => r.classifications.length > 0);
 
     const now = Date.now();
     const ms = {
@@ -147,7 +160,7 @@ export function AnalyticsPage() {
     }
 
     return list;
-  }, [recordings, dateRange, classificationFilter]);
+  }, [deferredRecordings, dateRange, classificationFilter]);
 
   const listRecordings = useMemo(() => {
     if (
@@ -196,7 +209,7 @@ export function AnalyticsPage() {
     const sorted = Array.from(buckets.entries()).sort((a, b) =>
       a[0].localeCompare(b[0])
     );
-    return sorted.map(([bucket, data]) => {
+    const result = sorted.map(([bucket, data]) => {
       const flat: Record<string, number> = {};
       for (const c of allClasses) {
         flat[c] = data.classifications[c] ?? 0;
@@ -209,17 +222,46 @@ export function AnalyticsPage() {
         ...flat,
       };
     });
+
+    if (result.length <= MAX_CHART_POINTS) return result;
+    const chunkSize = Math.ceil(result.length / MAX_CHART_POINTS);
+    const combined: typeof result = [];
+    for (let i = 0; i < result.length; i += chunkSize) {
+      const chunk = result.slice(i, i + chunkSize);
+      const first = chunk[0];
+      const merged: typeof first = {
+        bucket: first.bucket,
+        label:
+          chunk.length > 1
+            ? `${first.label} – ${chunk[chunk.length - 1].label}`
+            : first.label,
+        count: 0,
+        classifications: {},
+      };
+      for (const row of chunk) {
+        merged.count += row.count;
+        for (const [cls, n] of Object.entries(row.classifications)) {
+          merged.classifications[cls] = (merged.classifications[cls] ?? 0) + n;
+        }
+      }
+      const flat: Record<string, number> = {};
+      for (const c of allClasses) {
+        flat[c] = merged.classifications[c] ?? 0;
+      }
+      combined.push({ ...merged, ...flat });
+    }
+    return combined;
   }, [filteredRecordings, grouping]);
 
   const classifications = useMemo(() => {
     const set = new Set<string>();
-    for (const r of recordings) {
+    for (const r of deferredRecordings) {
       if (r.classifications.length > 0) {
         for (const c of r.classifications) set.add(c.label);
       }
     }
     return Array.from(set).sort();
-  }, [recordings]);
+  }, [deferredRecordings]);
 
   const chartClassifications = useMemo(() => {
     const set = new Set<string>();
@@ -287,13 +329,19 @@ export function AnalyticsPage() {
     <div className="rounded-lg bg-zinc-900 p-6 ring-1 ring-zinc-700/50">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <h2 className="text-lg font-semibold text-zinc-100">Analytics</h2>
-        <button
-          type="button"
-          onClick={fetchRecordings}
-          className="rounded-md border border-zinc-600 px-3 py-1.5 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
-        >
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          {(isPending || deferredRecordings !== recordings) && (
+            <span className="text-xs text-zinc-500">Processing…</span>
+          )}
+          <button
+            type="button"
+            onClick={fetchRecordings}
+            disabled={loading}
+            className="rounded-md border border-zinc-600 px-3 py-1.5 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-50"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
