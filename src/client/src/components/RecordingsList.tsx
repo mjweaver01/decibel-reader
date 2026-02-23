@@ -4,8 +4,6 @@ import { API_BASE } from '@shared/constants';
 import { useIsMobile } from '../hooks/useIsMobile';
 
 const PAGE_SIZE = 15;
-const MAX_HEIGHT_MOBILE = '800px';
-const MAX_HEIGHT_DESKTOP = '60vh';
 
 interface RecordingsListProps {
   refreshTrigger?: number;
@@ -22,7 +20,9 @@ export function RecordingsList({
 }: RecordingsListProps) {
   const isMobile = useIsMobile();
 
-  const [localRecordings, setLocalRecordings] = useState<RecordingMetadata[]>([]);
+  const [localRecordings, setLocalRecordings] = useState<RecordingMetadata[]>(
+    []
+  );
   const [loading, setLoading] = useState(true);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -129,12 +129,7 @@ export function RecordingsList({
           recordings will appear here.
         </p>
       ) : (
-        <div
-          className="space-y-2 overflow-y-auto"
-          style={{
-            maxHeight: isMobile ? MAX_HEIGHT_MOBILE : MAX_HEIGHT_DESKTOP,
-          }}
-        >
+        <div className="space-y-2 overflow-y-auto max-h-200">
           {visibleRecordings.map(r => (
             <div
               key={r.id}
