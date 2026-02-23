@@ -250,9 +250,6 @@ export function Configuration({ config, onSave, devices }: ConfigurationProps) {
             <option value={2}>2 seconds</option>
             <option value={3}>3 seconds</option>
             <option value={5}>5 seconds</option>
-            <option value={10}>10 seconds</option>
-            <option value={15}>15 seconds</option>
-            <option value={30}>30 seconds</option>
           </select>
           <p className="mt-1 text-xs text-zinc-500">
             Recording stops after sound stays below threshold for this long
@@ -271,9 +268,12 @@ export function Configuration({ config, onSave, devices }: ConfigurationProps) {
             onChange={e => setPreBufferSeconds(Number(e.target.value))}
             className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           >
-            <option value={0}>None</option>
+            <option value={0.1}>0.1 seconds</option>
+            <option value={0.25}>0.25 seconds</option>
             <option value={0.5}>0.5 seconds</option>
+            <option value={0.75}>0.75 seconds</option>
             <option value={1}>1 second</option>
+            <option value={1.5}>1.5 seconds</option>
             <option value={2}>2 seconds</option>
             <option value={3}>3 seconds</option>
             <option value={5}>5 seconds</option>
