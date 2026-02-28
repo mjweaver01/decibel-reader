@@ -20,15 +20,21 @@ export async function fetchAndDecodeAudio(recordingId: string): Promise<AudioBuf
   return ctx.decodeAudioData(arrayBuffer);
 }
 
+export interface ClipInfo {
+  recordingId: string;
+  startTime: number;
+  endTime: number;
+}
+
 export interface PlaybackOptions {
-  recordingIds: string[];
+  clips: ClipInfo[];
   gapSeconds?: number;
   onEnded?: () => void;
   onError?: (error: Error) => void;
 }
 
 export async function playSequence(options: PlaybackOptions): Promise<void> {
-  const { recordingIds, gapSeconds = 0, onEnded, onError } = options;
+  const { clips, gapSeconds = 0, onEnded, onError } = options;
 
   try {
     stop();
@@ -38,22 +44,24 @@ export async function playSequence(options: PlaybackOptions): Promise<void> {
       await ctx.resume();
     }
 
-    const buffers: AudioBuffer[] = [];
-    for (const id of recordingIds) {
-      const buffer = await fetchAndDecodeAudio(id);
-      buffers.push(buffer);
+    const buffers: { buffer: AudioBuffer; clip: ClipInfo }[] = [];
+    for (const clip of clips) {
+      const buffer = await fetchAndDecodeAudio(clip.recordingId);
+      buffers.push({ buffer, clip });
     }
 
     let startTime = ctx.currentTime;
     const sources: AudioBufferSourceNode[] = [];
 
-    for (const buffer of buffers) {
+    for (const { buffer, clip } of buffers) {
       const source = ctx.createBufferSource();
       source.buffer = buffer;
       source.connect(ctx.destination);
-      source.start(startTime);
+      
+      const clipDuration = clip.endTime - clip.startTime;
+      source.start(startTime, clip.startTime, clipDuration);
       sources.push(source);
-      startTime += buffer.duration + gapSeconds;
+      startTime += clipDuration + gapSeconds;
     }
 
     activeSources = sources;

@@ -2,10 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import type { RecordingMetadata } from '@shared/types';
 import { API_BASE } from '@shared/constants';
 import { playSequence, stop } from '../lib/sequencePlayback';
+import { DualRangeSlider } from '../components/DualRangeSlider';
 
 interface SequenceItem {
   id: string;
   metadata: RecordingMetadata;
+  startTime: number;
+  endTime: number;
 }
 
 export function MixPage() {
@@ -47,12 +50,33 @@ export function MixPage() {
     const newItem: SequenceItem = {
       id: `${recording.id}-${Date.now()}`,
       metadata: recording,
+      startTime: 0,
+      endTime: recording.durationSeconds,
     };
     setSequence(prev => [...prev, newItem]);
   };
 
   const handleRemoveFromSequence = (id: string) => {
     setSequence(prev => prev.filter(item => item.id !== id));
+  };
+
+  const handleUpdateClipTime = (id: string, field: 'startTime' | 'endTime', value: number) => {
+    setSequence(prev => prev.map(item => {
+      if (item.id !== id) return item;
+      const newValue = Math.max(0, Math.min(value, item.metadata.durationSeconds));
+      if (field === 'startTime') {
+        return { ...item, startTime: Math.min(newValue, item.endTime - 0.1) };
+      } else {
+        return { ...item, endTime: Math.max(newValue, item.startTime + 0.1) };
+      }
+    }));
+  };
+
+  const handleResetClip = (id: string) => {
+    setSequence(prev => prev.map(item => {
+      if (item.id !== id) return item;
+      return { ...item, startTime: 0, endTime: item.metadata.durationSeconds };
+    }));
   };
 
   const handleMoveUp = (index: number) => {
@@ -104,7 +128,11 @@ export function MixPage() {
     setError(null);
 
     await playSequence({
-      recordingIds: sequence.map(item => item.metadata.id),
+      clips: sequence.map(item => ({
+        recordingId: item.metadata.id,
+        startTime: item.startTime,
+        endTime: item.endTime,
+      })),
       gapSeconds,
       onEnded: () => setIsPlaying(false),
       onError: (err) => {
@@ -155,7 +183,7 @@ export function MixPage() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const totalDuration = sequence.reduce((sum, item) => sum + item.metadata.durationSeconds, 0) + 
+  const totalDuration = sequence.reduce((sum, item) => sum + (item.endTime - item.startTime), 0) + 
                         (sequence.length > 1 ? gapSeconds * (sequence.length - 1) : 0);
 
   if (loading) {
@@ -288,65 +316,117 @@ export function MixPage() {
                   {sequence.map((item, index) => (
                     <div
                       key={item.id}
-                      draggable
-                      onDragStart={() => handleDragStart(index)}
-                      onDragOver={(e) => handleDragOver(e, index)}
-                      onDragEnd={handleDragEnd}
-                      className={`flex items-center gap-2 px-3 py-3 transition-colors ${
+                      className={`transition-colors ${
                         draggedIndex === index ? 'opacity-50' : ''
-                      } cursor-move hover:bg-zinc-800/50`}
+                      }`}
                     >
-                      <div className="flex shrink-0 items-center text-zinc-500">
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
-                        </svg>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-zinc-400">
-                            #{index + 1}
-                          </span>
-                          <span className="text-sm text-zinc-200 truncate">
-                            {item.metadata.classifications[0]?.label || 'Unknown'}
-                          </span>
-                          <span className="text-xs text-zinc-500">
-                            {formatDuration(item.metadata.durationSeconds)}
-                          </span>
+                      <div
+                        draggable
+                        onDragStart={() => handleDragStart(index)}
+                        onDragOver={(e) => handleDragOver(e, index)}
+                        onDragEnd={handleDragEnd}
+                        className="flex items-center gap-2 px-3 py-2 cursor-move hover:bg-zinc-800/50"
+                      >
+                        <div className="flex shrink-0 items-center text-zinc-500">
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+                          </svg>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-zinc-400">
+                              #{index + 1}
+                            </span>
+                            <span className="text-sm text-zinc-200 truncate">
+                              {item.metadata.classifications[0]?.label || 'Unknown'}
+                            </span>
+                            <span className="text-xs text-zinc-500">
+                              {formatDuration(item.endTime - item.startTime)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleMoveUp(index)}
+                            disabled={index === 0}
+                            className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            aria-label="Move up"
+                          >
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveDown(index)}
+                            disabled={index === sequence.length - 1}
+                            className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            aria-label="Move down"
+                          >
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFromSequence(item.id)}
+                            className="rounded p-1 text-red-400 hover:bg-red-900/30 hover:text-red-300 transition-colors"
+                            aria-label="Remove"
+                          >
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
                         </div>
                       </div>
-                      <div className="flex shrink-0 gap-1">
-                        <button
-                          type="button"
-                          onClick={() => handleMoveUp(index)}
-                          disabled={index === 0}
-                          className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                          aria-label="Move up"
-                        >
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleMoveDown(index)}
-                          disabled={index === sequence.length - 1}
-                          className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                          aria-label="Move down"
-                        >
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveFromSequence(item.id)}
-                          className="rounded p-1 text-red-400 hover:bg-red-900/30 hover:text-red-300 transition-colors"
-                          aria-label="Remove"
-                        >
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
+                      <div className="px-3 pb-3 pt-2 space-y-3 bg-zinc-900/50">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 text-xs text-zinc-400">
+                            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>Clip: {formatDuration(item.endTime - item.startTime)}</span>
+                            <span className="text-zinc-600">•</span>
+                            <span className="text-zinc-500">Full: {formatDuration(item.metadata.durationSeconds)}</span>
+                          </div>
+                          {(item.startTime !== 0 || item.endTime !== item.metadata.durationSeconds) && (
+                            <button
+                              type="button"
+                              onClick={() => handleResetClip(item.id)}
+                              className="text-xs text-zinc-500 hover:text-emerald-400 transition-colors"
+                              title="Reset to full duration"
+                            >
+                              Reset
+                            </button>
+                          )}
+                        </div>
+                        
+                        {/* Dual Range Slider */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-medium text-zinc-400">Trim Clip</span>
+                            <div className="flex items-center gap-2 font-mono text-emerald-400">
+                              <span>{item.startTime.toFixed(2)}s</span>
+                              <span className="text-zinc-600">→</span>
+                              <span>{item.endTime.toFixed(2)}s</span>
+                            </div>
+                          </div>
+                          <DualRangeSlider
+                            min={0}
+                            max={item.metadata.durationSeconds}
+                            startValue={item.startTime}
+                            endValue={item.endTime}
+                            onStartChange={(value) => handleUpdateClipTime(item.id, 'startTime', value)}
+                            onEndChange={(value) => handleUpdateClipTime(item.id, 'endTime', value)}
+                            step={0.01}
+                          />
+                          <div className="flex items-center justify-between text-[10px] text-zinc-500 font-mono">
+                            <span>0.00s</span>
+                            <span>{item.metadata.durationSeconds.toFixed(2)}s</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   ))}
