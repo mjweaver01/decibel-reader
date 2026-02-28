@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RecordingMetadata } from '@shared/types';
 import { API_BASE } from '@shared/constants';
-
-const PAGE_SIZE = 15;
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 
 interface RecordingsListProps {
   refreshTrigger?: number;
@@ -26,12 +25,14 @@ export function RecordingsList({
   );
   const [loading, setLoading] = useState(true);
   const [playingId, setPlayingId] = useState<string | null>(null);
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const recordings =
     recordingsProp !== undefined ? recordingsProp : localRecordings;
+
+  const { visibleCount, sentinelRef, hasMore } = useInfiniteScroll({
+    totalCount: recordings.length,
+  });
 
   const fetchRecordings = useCallback(async () => {
     fetch(`${API_BASE}/recordings`)
@@ -41,9 +42,6 @@ export function RecordingsList({
           r => r.classifications.length > 0
         );
         setLocalRecordings(withClassifications);
-        setVisibleCount(prev =>
-          prev === 0 ? PAGE_SIZE : Math.min(prev, withClassifications.length)
-        );
       })
       .finally(() => setLoading(false));
   }, []);
@@ -61,21 +59,6 @@ export function RecordingsList({
     const interval = setInterval(fetchRecordings, 5000);
     return () => clearInterval(interval);
   }, [fetchRecordings, recordingsProp]);
-
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
-
-    const observer = new IntersectionObserver(
-      entries => {
-        if (!entries[0]?.isIntersecting) return;
-        setVisibleCount(prev => Math.min(prev + PAGE_SIZE, recordings.length));
-      },
-      { rootMargin: '100px', threshold: 0 }
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [recordings.length]);
 
   const formatDate = (ts: string) => {
     try {
@@ -119,7 +102,6 @@ export function RecordingsList({
   };
 
   const visibleRecordings = recordings.slice(0, visibleCount);
-  const hasMore = visibleCount < recordings.length;
 
   return (
     <div className={compact ? 'px-2' : 'rounded-lg bg-zinc-900 p-6 ring-1 ring-zinc-700/50'}>
