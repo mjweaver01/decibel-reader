@@ -8,9 +8,11 @@ interface ConfigurationProps {
   config: AppConfig;
   onSave: (config: Partial<AppConfig>) => Promise<void>;
   devices: MediaDeviceInfo[];
+  /** When true, omit outer card styling (e.g. when inside a modal) */
+  embedded?: boolean;
 }
 
-export function Configuration({ config, onSave, devices }: ConfigurationProps) {
+export function Configuration({ config, onSave, devices, embedded }: ConfigurationProps) {
   const [thresholdDb, setThresholdDb] = useState(config.thresholdDb);
   const [thresholdInput, setThresholdInput] = useState(
     String(Math.max(-60, Math.min(0, config.thresholdDb)))
@@ -134,11 +136,13 @@ export function Configuration({ config, onSave, devices }: ConfigurationProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-lg bg-zinc-900 p-6 ring-1 ring-zinc-700/50"
+      className={embedded ? '' : 'rounded-lg bg-zinc-900 p-6 ring-1 ring-zinc-700/50'}
     >
-      <h2 className="mb-4 text-lg font-semibold text-zinc-100">
-        Configuration
-      </h2>
+      {!embedded && (
+        <h2 className="mb-4 text-lg font-semibold text-zinc-100">
+          Configuration
+        </h2>
+      )}
       <div className="space-y-4">
         {devices.length > 0 && (
           <div>

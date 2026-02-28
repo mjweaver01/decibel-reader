@@ -1,8 +1,8 @@
 import { useMonitoringStatus } from '../context/MonitoringStatusContext';
 import { useRecordingsVersion } from '../lib/recordingsVersion';
+import { useIsMobile } from '../hooks/useIsMobile';
 import { AudioVisualizer } from '../components/AudioVisualizer';
 import { RecordingsList } from '../components/RecordingsList';
-import { Configuration } from '../components/Configuration';
 
 export function MonitorPage() {
   const {
@@ -14,10 +14,9 @@ export function MonitorPage() {
     stream,
     lastDetection,
     config,
-    handleSaveConfig,
-    devices,
   } = useMonitoringStatus();
   const recordingsVersion = useRecordingsVersion();
+  const isMobile = useIsMobile();
 
   if (!micEnabled) {
     return (
@@ -32,7 +31,7 @@ export function MonitorPage() {
         </p>
         <button
           onClick={() => setMicEnabled(true)}
-          className="rounded-md bg-emerald-600 px-4 py-2 font-medium text-white hover:bg-emerald-500"
+          className="rounded-xl bg-emerald-600 px-6 py-4 font-medium text-white hover:bg-emerald-500 active:bg-emerald-500 touch-manipulation min-h-[48px] w-full sm:w-auto sm:min-h-0 sm:px-4 sm:py-2"
         >
           Start monitoring
         </button>
@@ -65,14 +64,9 @@ export function MonitorPage() {
           <span className="font-medium text-emerald-400">{lastDetection}</span>
         </div>
       )}
-      <div className="grid grid-cols-1 gap-4 md:gap-6 md:grid-cols-2">
-        <Configuration
-          config={config}
-          onSave={handleSaveConfig}
-          devices={devices}
-        />
+      {!isMobile && (
         <RecordingsList refreshTrigger={recordingsVersion} />
-      </div>
+      )}
     </>
   );
 }

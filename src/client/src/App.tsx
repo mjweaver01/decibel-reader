@@ -6,7 +6,7 @@ import { MonitorPage } from './pages/MonitorPage';
 export default function App() {
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      <div className="mx-auto px-4 py-8 max-w-5xl">
+      <div className="mx-auto max-w-5xl px-4 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] sm:px-4 sm:py-8">
         <Header />
 
         <main className="space-y-4 md:space-y-6">
