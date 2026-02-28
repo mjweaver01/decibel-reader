@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router-dom';
 import { Header } from './components/Header';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { MonitorPage } from './pages/MonitorPage';
+import { MixPage } from './pages/MixPage';
 
 export default function App() {
   return (
@@ -12,6 +13,7 @@ export default function App() {
         <main className="space-y-4 md:space-y-6">
           <Routes>
             <Route path="/analytics" element={<AnalyticsPage />} />
+            <Route path="/mix" element={<MixPage />} />
             <Route path="/" element={<MonitorPage />} />
           </Routes>
         </main>

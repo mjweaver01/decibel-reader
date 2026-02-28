@@ -23,6 +23,7 @@ const server = Bun.serve({
   routes: {
     '/': clientHtml,
     '/analytics': clientHtml,
+    '/mix': clientHtml,
     '/api/config': configApi,
     '/api/recordings': recordingsApi,
     '/api/recordings/:id': recordingsIdApi,
