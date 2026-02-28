@@ -18,6 +18,11 @@ export function ConfigModal({
   onSave,
   devices,
 }: ConfigModalProps) {
+  const handleSave = async (updates: Partial<AppConfig>) => {
+    await onSave(updates);
+    onClose();
+  };
+
   useEffect(() => {
     if (!isOpen) return;
     const handleEscape = (e: KeyboardEvent) => {
@@ -68,7 +73,7 @@ export function ConfigModal({
           </button>
         </div>
         <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6">
-          <Configuration config={config} onSave={onSave} devices={devices} embedded />
+          <Configuration config={config} onSave={handleSave} devices={devices} embedded />
         </div>
       </div>
     </div>
